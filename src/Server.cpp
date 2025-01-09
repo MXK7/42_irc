@@ -44,7 +44,7 @@ for the operating system to release the port.
  */
 int Server::CreateSocket()
 {
-    int server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    this->server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd == -1)
     {
         std::cerr << COLOR_RED << ERR_CR_SOCK << std::endl;
@@ -52,7 +52,7 @@ int Server::CreateSocket()
     }
 
     int tmp_opt = 1;
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &tmp_opt, sizeof(tmp_opt)) < 0)
+    if (setsockopt(this->server_fd, SOL_SOCKET, SO_REUSEADDR, &tmp_opt, sizeof(tmp_opt)) < 0)
     {
         std::cerr << COLOR_RED << ERR_CFG_SOCK << std::endl;
         exit(EXIT_FAILURE);
@@ -64,28 +64,42 @@ int Server::CreateSocket()
     server_addr.sin_addr.s_addr = INADDR_ANY;
     server_addr.sin_port = htons(port);
 
-    if(bind(server_fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0)//bind the socketsto the address and port
+    if(bind(this->server_fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0)//bind the socketsto the address and port
     {
-        std::cerr << COLOR_RED << << COLOR_RESET << std::endl;
-        close(server_fd);
+        std::cerr << COLOR_RED << ERR_BIND_SOCK << COLOR_RESET << std::endl;
+        close(this->server_fd);
         return(-1);
     }
 
-    if(listen(server_fd, SOMAXCONN) < 0) //socket on 
+    if(listen(this->server_fd, SOMAXCONN) < 0) //socket on 
     {
         std::cerr << COLOR_RED << ERR_LISTEN_SOCK << COLOR_RESET << std::endl;
-        close(server_fd);
-        return(-1);
+        close(this->server_fd);
     }
-    
-    if (fcntl(server_fd, F_SETFL, O_NONBLOCK) < 0) {
+
+    if (fcntl(this->server_fd, F_SETFL, O_NONBLOCK) < 0) {
         std::cerr << ERR_FCNTL_SOCK << std::endl;
-        exit(EXIT_FAILURE);
+        close(this->server_fd);
     }
 
     std::cout << COLOR_GREEN << "SOCKET CREATED" << COLOR_RESET << std::endl;
     std::cout << COLOR_BLUE << "Password : " << COLOR_RESET << password << std::endl;
     std::cout << COLOR_BLUE << "Port : " << COLOR_RESET << port << std::endl;
 
-    return (server_fd);
+    return (0);
+}
+
+int server::HandlerConnection()
+{
+    struct sockaddr_in client_addr;
+    socklen_t client_len = sizeof(client_addr);
+    int client_fd;
+
+    std::cout << "Serveur en attente de connexions..." << std::endl;
+
+    while (true)
+    {
+        
+    }
+    return (close(server_fd))
 }

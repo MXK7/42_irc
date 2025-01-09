@@ -31,9 +31,11 @@ class Server
 {
     private:
         int port;
+        int server_fd;
         std::string password;
 
     public:
         Server(int port, const std::string& password);
         int CreateSocket();
+        int HandlerConnection();
 };
