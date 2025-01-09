@@ -10,6 +10,8 @@
 #define COLOR_WHITE "\033[37m"
 
 #include <iostream>
+#include <cstring>
+#include <cerrno>
 #include <cstdlib>  // atoi
 #include <sys/socket.h> //-> for socket()
 #include <sys/types.h> //-> for socket()
@@ -37,5 +39,5 @@ class Server
     public:
         Server(int port, const std::string& password);
         int CreateSocket();
-        int HandlerConnection();
+        int HandlerConnexion();
 };
