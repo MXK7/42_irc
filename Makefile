@@ -1,10 +1,10 @@
 NAME          = prog
-INCLUDES      = -I includes/
+INCLUDES      = -I./includes
 SRC_DIR       = src/
 OBJ_DIR       = obj/
 
 CXX           = c++
-CXXFLAGS      = -Wall -Wextra -Werror -std=c++98
+CXXFLAGS      = -Wall -Wextra -Werror -std=c++98 $(INCLUDES)
 
 SRC_FILES     = main Server
 
@@ -18,7 +18,7 @@ OBJ_CACHE     = .cache_exists
 all:			$(NAME)
 
 $(NAME):		$(OBJ)
-					$(CXX) $(CXXFLAGS) $(INCLUDES) $(OBJ) -o $(NAME)
+					$(CXX) $(CXXFLAGS) $(OBJ) -o $(NAME)
 					@echo "$(NAME) compiled!"
 
 $(OBJ_DIR)%.o : $(SRC_DIR)%.cpp | $(OBJ_CACHE)

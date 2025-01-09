@@ -10,25 +10,30 @@
 #define COLOR_WHITE "\033[37m"
 
 #include <iostream>
+#include <cstdlib>  // atoi
 #include <sys/socket.h> //-> for socket()
 #include <sys/types.h> //-> for socket()
 #include <netinet/in.h> //-> for sockaddr_in
+#include <arpa/inet.h> //-> for inet_ntoa(), htons()
+#include <fcntl.h> //-> for fcntl()
+#include <unistd.h> //-> for close()
 // #include <vector> //-> for vector
-// #include <fcntl.h> //-> for fcntl()
-// #include <unistd.h> //-> for close()
-// #include <arpa/inet.h> //-> for inet_ntoa()
 // #include <poll.h> //-> for poll()
 // #include <csignal> //-> for signal()
 
-#define ERR_CR_SOCK "Error : Failed to create a socket"
-#define ERR_CFG_SOCK "Error : Cannot configure socket options"
+#define ERR_CR_SOCK "Error : Failed to create a socket."
+#define ERR_CFG_SOCK "Error : Cannot configure socket options."
+#define ERR_BIND_SOCK  "Error: failed to bind the socket."
+#define ERR_LISTEN_SOCK "Error: failed to listen to the socket."
+#define ERR_FCNTL_SOCK "Error: Unable to make socket non-blocking"
 
 class Server
 {
     private:
         int port;
+        std::string password;
 
     public:
+        Server(int port, const std::string& password);
         int CreateSocket();
-        int BindSocket();
 };

@@ -7,22 +7,25 @@ int main(int argc, char **argv)
         std::cerr << "Usage: " << argv[0] << " <port> <password>" << std::endl;
         return (1);
     }
-    ft_irc();
-    return (0);
-}
 
-void ft_irc()
-{
-    Server server;
+    int port = atoi(argv[1]);
+    std::string password = argv[2];
 
-    if (server.CreateSocket())
+    if (port <= 0 || port > 65535)
     {
-        // Bind the socket to the port
+        std::cerr << "Erreur : Le port doit être un entier valide entre 1 et 65535." << std::endl;
+        return 1;
     }
-    // Listen for incoming connections
-    // Accept a connection
-    // Receive data
-    // Send data
-    // Close the connection
-    // Close the socket
+
+    Server server(port, password);
+
+    if (int server_fd = server.CreateSocket() != 0)
+    {
+        std::cerr << "Erreur lors de la création du serveur." << std::endl;
+        return (1);
+    }
+
+    // close(server_fd);
+
+    return (0);
 }
