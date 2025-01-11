@@ -19,9 +19,10 @@
 #include <arpa/inet.h> //-> for inet_ntoa(), htons()
 #include <fcntl.h> //-> for fcntl()
 #include <unistd.h> //-> for close()
-// #include <vector> //-> for vector
+#include <vector> //-> for vector
+#include <csignal> //-> for signal()
+#include <algorithm>
 // #include <poll.h> //-> for poll()
-// #include <csignal> //-> for signal()
 
 #define ERR_CR_SOCK "Error : Failed to create a socket."
 #define ERR_CFG_SOCK "Error : Cannot configure socket options."
@@ -31,13 +32,20 @@
 
 class Server
 {
-    private:
-        int port;
-        int server_fd;
-        std::string password;
+private:
+    int port;
+    int server_fd;
+    std::string password;
+    std::vector<int> client_fds;
+    bool is_running;
 
-    public:
-        Server(int port, const std::string& password);
-        int CreateSocket();
-        int HandlerConnexion();
+public:
+    static Server* instance;
+    Server(int port, const std::string& password);
+
+    int CreateSocket();
+    int HandlerConnexion();
+    void close_all_clients();
+    void handle_signal(int signal);
+    static void signal_handler(int signal);  // Fonction statique pour signal()
 };

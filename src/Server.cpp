@@ -1,11 +1,4 @@
 #include "../includes/Server.hpp"
-
-Server::Server(int port, const std::string& password)
-{
-	this->port = port;
-	this->password = password;
-}
-
 /**
  * @brief Create a server socket
 
@@ -42,13 +35,58 @@ for the operating system to release the port.
 	- Prints ERR_CR_SOCK if socket creation fails.
 	- Prints ERR_CFG_SOCK and exits the program if configuration fails.
  */
+
+
+Server* Server::instance = NULL;
+
+Server::Server(int port, const std::string& password)
+	: is_running(true)  // Init flag to make the serv run
+{
+	this->port = port;
+	this->password = password;
+
+	Server::instance = this;// Initialiser le pointeur statique de l'instance
+
+	signal(SIGINT, Server::signal_handler); // Associer le gestionnaire de signal à SIGINT
+}
+
+// Gestionnaire de signal pour fermer le serveur proprement
+void Server::handle_signal(int signal)
+{
+	(void)signal;
+	std::cout << "Arrêt du serveur..." << std::endl;
+
+	std::string shutdown_message = "Le serveur va fermer. Merci de votre connexion.\n";
+	for (size_t i = 0; i < client_fds.size(); ++i)
+		send(client_fds[i], shutdown_message.c_str(), shutdown_message.size(), 0);
+
+	close_all_clients();
+	close(server_fd);
+	exit(0);
+}
+
+
+void Server::signal_handler(int signal)
+{
+	if (instance)
+		instance->handle_signal(signal);
+}
+
+
+void Server::close_all_clients()
+{
+	for (size_t i = 0; i < client_fds.size(); ++i)
+		close(client_fds[i]);
+	client_fds.clear();
+}
+
 int Server::CreateSocket()
 {
 	this->server_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (server_fd == -1)
 	{
 		std::cerr << COLOR_RED << ERR_CR_SOCK << std::endl;
-		return (-1);
+		return -1;
 	}
 
 	int tmp_opt = 1;
@@ -64,75 +102,98 @@ int Server::CreateSocket()
 	server_addr.sin_addr.s_addr = INADDR_ANY;
 	server_addr.sin_port = htons(port);
 
-	if(bind(this->server_fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0)//bind the socketsto the address and port
+	if (bind(this->server_fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0)
 	{
 		std::cerr << COLOR_RED << ERR_BIND_SOCK << COLOR_RESET << std::endl;
 		close(this->server_fd);
-		return(-1);
+		return -1;
 	}
 
-	if(listen(this->server_fd, SOMAXCONN) < 0) //socket on 
+	if (listen(this->server_fd, SOMAXCONN) < 0)
 	{
 		std::cerr << COLOR_RED << ERR_LISTEN_SOCK << COLOR_RESET << std::endl;
 		close(this->server_fd);
-	}
-
-	if (fcntl(this->server_fd, F_SETFL, O_NONBLOCK) < 0) {
-		std::cerr << ERR_FCNTL_SOCK << std::endl;
-		close(this->server_fd);
+		return -1;
 	}
 
 	std::cout << COLOR_GREEN << "SOCKET CREATED" << COLOR_RESET << std::endl;
 	std::cout << COLOR_BLUE << "Password : " << COLOR_RESET << password << std::endl;
 	std::cout << COLOR_BLUE << "Port : " << COLOR_RESET << port << std::endl;
 
-	return (0);
+	return 0;
 }
 
 int Server::HandlerConnexion()
 {
-    struct sockaddr_in client_addr;
-    socklen_t client_len = sizeof(client_addr);
-    int client_fd;
+	fd_set read_fds, temp_fds;
+	FD_ZERO(&read_fds);
+	FD_SET(server_fd, &read_fds);
 
-    std::cout << "Serveur en attente de connexions..." << std::endl;
+	int max_fd = server_fd;
 
-    while (true)
-    {
-        client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &client_len);
-        if (client_fd < 0)
-        {
-            if (errno == EWOULDBLOCK || errno == EAGAIN) {
-                // Pas de connexion disponible pour le moment, continue la boucle
-                continue;
-            }
-            std::cerr << COLOR_RED << "Erreur lors de l'acceptation d'une connexion." << COLOR_RESET << std::endl;
-            continue;
-        }
+	while (is_running)
+	{
+		temp_fds = read_fds;
 
-        std::cout << COLOR_GREEN << "Nouvelle connexion acceptée." << COLOR_RESET << std::endl;
+		//Wait to check the fd to see if there is some activity
+		if (select(max_fd + 1, &temp_fds, NULL, NULL, NULL) < 0)
+		{
+			std::cerr << COLOR_RED << "Erreur dans select()." << COLOR_RESET << std::endl;
+			break;
+		}
 
-        char buffer[1024];
-        int bytes_read;
+		for (int fd = 0; fd <= max_fd; ++fd)
+		{
+			if (FD_ISSET(fd, &temp_fds))
+			{
+				if (fd == server_fd)
+				{
+					struct sockaddr_in client_addr; //New connexion
+					socklen_t client_len = sizeof(client_addr);
+					int client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &client_len);
 
-        bytes_read = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
-        if (bytes_read > 0)
-        {
-            buffer[bytes_read] = '\0';
-            std::cout << "Message reçu du client : " << buffer << std::endl;
+					if (client_fd < 0)
+					{
+						std::cerr << COLOR_RED << "Erreur lors de l'acceptation d'une connexion." << COLOR_RESET << std::endl;
+						continue;
+					}
 
-            const char* welcome_message = "Welcome to this IRC server!";
-            send(client_fd, welcome_message, strlen(welcome_message), 0);
-        }
-        else if (bytes_read == 0)
-        {
-            std::cout << "Client déconnecté." << std::endl;
-        }
-        else
-        {
-            std::cerr << COLOR_RED << "Erreur lors de la réception des données du client." << COLOR_RESET << std::endl;
-        }
-        close(client_fd);
-    }
-    return close(server_fd);
+					client_fds.push_back(client_fd);
+					FD_SET(client_fd, &read_fds);
+					if (client_fd > max_fd) max_fd = client_fd;
+
+					std::cout << COLOR_GREEN << "Nouvelle connexion acceptée (FD: " << client_fd << ")." << COLOR_RESET << std::endl;
+				}
+				else
+				{
+					char buffer[1024];
+					int bytes_read = recv(fd, buffer, sizeof(buffer) - 1, 0);
+
+					if (bytes_read > 0)
+					{
+						buffer[bytes_read] = '\0';
+						std::cout << "Message reçu du client " << fd << ": " << buffer << std::endl;
+
+						std::string response = "Message reçu : "; // Answer to the client
+						response += buffer;
+						send(fd, response.c_str(), response.length(), 0);
+					}
+					else
+					{
+						if (bytes_read == 0)
+							std::cout << "Client déconnecté (FD: " << fd << ")." << std::endl;
+						else 
+							std::cerr << COLOR_RED << "Erreur lors de la réception des données du client (FD: " << fd << ")." << COLOR_RESET << std::endl;
+					}
+
+					close(fd);
+					FD_CLR(fd, &read_fds);
+					client_fds.erase(std::remove(client_fds.begin(), client_fds.end(), fd), client_fds.end());
+				}
+			}
+		}
+	}
+	close_all_clients();
+	close(server_fd);
+	return 0;
 }
