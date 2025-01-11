@@ -170,25 +170,32 @@ int Server::HandlerConnexion()
 					int bytes_read = recv(fd, buffer, sizeof(buffer) - 1, 0);
 
 					if (bytes_read > 0)
-					{
-						buffer[bytes_read] = '\0';
-						std::cout << "Message reçu du client " << fd << ": " << buffer << std::endl;
+{
+    buffer[bytes_read] = '\0';
+    std::cout << "Message reçu du client " << fd << ": " << buffer << std::endl;
 
-						std::string response = "Message reçu : "; // Answer to the client
-						response += buffer;
-						send(fd, response.c_str(), response.length(), 0);
-					}
-					else
-					{
-						if (bytes_read == 0)
-							std::cout << "Client déconnecté (FD: " << fd << ")." << std::endl;
-						else 
-							std::cerr << COLOR_RED << "Erreur lors de la réception des données du client (FD: " << fd << ")." << COLOR_RESET << std::endl;
-					}
+    std::string response = "Message reçu : "; // Réponse au client
+    response += buffer;
+    send(fd, response.c_str(), response.length(), 0);
+}
+else if (bytes_read == 0) // Le client a fermé la connexion
+{
+    std::cout << "Client déconnecté (FD: " << fd << ")." << std::endl;
 
-					close(fd);
-					FD_CLR(fd, &read_fds);
-					client_fds.erase(std::remove(client_fds.begin(), client_fds.end(), fd), client_fds.end());
+    // Fermer proprement la connexion
+    close(fd);
+    FD_CLR(fd, &read_fds);
+    client_fds.erase(std::remove(client_fds.begin(), client_fds.end(), fd), client_fds.end());
+}
+else // Erreur de réception
+{
+    std::cerr << COLOR_RED << "Erreur lors de la réception des données du client (FD: " << fd << ")." << COLOR_RESET << std::endl;
+
+    // Fermer proprement en cas d'erreur
+    close(fd);
+    FD_CLR(fd, &read_fds);
+    client_fds.erase(std::remove(client_fds.begin(), client_fds.end(), fd), client_fds.end());
+}
 				}
 			}
 		}
