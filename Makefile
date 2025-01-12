@@ -6,7 +6,12 @@ OBJ_DIR       = obj/
 CXX           = c++
 CXXFLAGS      = -Wall -Wextra -Werror -std=c++98 $(INCLUDES)
 
-SRC_FILES     = main Server
+SRC_FILES     = main \
+				Server \
+				Channel \
+				Client \
+				Commands
+
 
 SRC           = $(addprefix $(SRC_DIR), $(addsuffix .cpp, $(SRC_FILES)))
 OBJ           = $(addprefix $(OBJ_DIR), $(addsuffix .o, $(SRC_FILES)))

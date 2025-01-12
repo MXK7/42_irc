@@ -1,19 +1,35 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   Server.cpp                                         :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: vmassoli <vmassoli@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/01/11 20:44:56 by vmassoli          #+#    #+#             */
+/*   Updated: 2025/01/12 13:02:57 by vmassoli         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "../includes/Client.hpp"
+#include "../includes/Channel.hpp"
 #include "../includes/Server.hpp"
+// #include <vector>
+
 /**
  * @brief Create a server socket
 
-This function initializes a server socket using the IPv4 protocol (AF_INET) and TCP (SOCK_STREAM). 
-It also sets the `SO_REUSEADDR` option, which allows the server to reuse the address without waiting 
+This function initializes a server socket using the IPv4 protocol (AF_INET) and TCP (SOCK_STREAM).
+It also sets the `SO_REUSEADDR` option, which allows the server to reuse the address without waiting
 for the operating system to release the port.
 
  * @return true if the socket was created and configured successfully, false otherwise.
 
- * @socket: 
+ * @socket:
 	- AF_INET = IPv4
 	- SOCK_STREAM = Reliable and ordered communication (TCP)
 	- 0 = Automatically selects the appropriate protocol (TCP for SOCK_STREAM, UDP for SOCK_DGRAM)
 
- * @setsockopt: 
+ * @setsockopt:
 	- tmp_opt = 1: Enables the reuse option.
 	- SOL_SOCKET, SO_REUSEADDR: Allows the address to be reused.
 
@@ -31,13 +47,29 @@ for the operating system to release the port.
  * @htons:
 	The 16-bit integer (short) to be converted, represented in host byte order.
 
- * @errors: 
+ * @errors:
 	- Prints ERR_CR_SOCK if socket creation fails.
 	- Prints ERR_CFG_SOCK and exits the program if configuration fails.
  */
 
 
 Server* Server::instance = NULL;
+
+Server::~Server() {
+	// Détruire les objets client et canal et effectuer tout nettoyage nécessaire
+	for (std::vector<Client*>::iterator it = clients.begin(); it != clients.end(); ++it) {
+		delete *it;  // Libérer la mémoire allouée pour chaque client
+	}
+	clients.clear();
+
+	for (std::vector<Channel*>::iterator it = channels.begin(); it != channels.end(); ++it) {
+		delete *it;  // Libérer la mémoire allouée pour chaque canal
+	}
+	channels.clear();
+
+	// Autres opérations de nettoyage, comme fermer le socket du serveur
+	close(server_fd);
+}
 
 Server::Server(int port, const std::string& password)
 	: is_running(true)  // Init flag to make the serv run
@@ -158,6 +190,8 @@ int Server::HandlerConnexion()
 						continue;
 					}
 
+					addClient(client_fd, "ClientName", "ClientNickname");
+
 					client_fds.push_back(client_fd);
 					FD_SET(client_fd, &read_fds);
 					if (client_fd > max_fd) max_fd = client_fd;
@@ -171,30 +205,30 @@ int Server::HandlerConnexion()
 
 					if (bytes_read > 0)
 {
-    buffer[bytes_read] = '\0';
-    std::cout << "Message reçu du client " << fd << ": " << buffer << std::endl;
+	buffer[bytes_read] = '\0';
+	std::cout << "Message reçu du client " << fd << ": " << buffer << std::endl;
 
-    std::string response = "Message reçu : "; // Réponse au client
-    response += buffer;
-    send(fd, response.c_str(), response.length(), 0);
+	std::string response = "Message reçu : "; // Réponse au client
+	response += buffer;
+	send(fd, response.c_str(), response.length(), 0);
 }
 else if (bytes_read == 0) // Le client a fermé la connexion
 {
-    std::cout << "Client déconnecté (FD: " << fd << ")." << std::endl;
+	std::cout << "Client déconnecté (FD: " << fd << ")." << std::endl;
 
-    // Fermer proprement la connexion
-    close(fd);
-    FD_CLR(fd, &read_fds);
-    client_fds.erase(std::remove(client_fds.begin(), client_fds.end(), fd), client_fds.end());
+	// Fermer proprement la connexion
+	close(fd);
+	FD_CLR(fd, &read_fds);
+	client_fds.erase(std::remove(client_fds.begin(), client_fds.end(), fd), client_fds.end());
 }
 else // Erreur de réception
 {
-    std::cerr << COLOR_RED << "Erreur lors de la réception des données du client (FD: " << fd << ")." << COLOR_RESET << std::endl;
+	std::cerr << COLOR_RED << "Erreur lors de la réception des données du client (FD: " << fd << ")." << COLOR_RESET << std::endl;
 
-    // Fermer proprement en cas d'erreur
-    close(fd);
-    FD_CLR(fd, &read_fds);
-    client_fds.erase(std::remove(client_fds.begin(), client_fds.end(), fd), client_fds.end());
+	// Fermer proprement en cas d'erreur
+	close(fd);
+	FD_CLR(fd, &read_fds);
+	client_fds.erase(std::remove(client_fds.begin(), client_fds.end(), fd), client_fds.end());
 }
 				}
 			}
@@ -203,4 +237,12 @@ else // Erreur de réception
 	close_all_clients();
 	close(server_fd);
 	return 0;
+}
+void Server::addClient(int client_fd, const std::string &name,
+						const std::string &nickname) {
+	Client* newClient= new Client(client_fd, name, nickname);
+	clients.push_back(newClient);
+	std::cout << "Client added : FD = " << client_fd
+			  << ", Name = " << name
+			  << ", Nickname = " << nickname << std::endl;
 }
