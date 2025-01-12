@@ -26,7 +26,6 @@ Channel::Channel() {
 Channel::Channel(const std::string name) :
 name(name) {}
 
-// Channel::Channel(const std::string& channelName) : name(channelName) {}
 
 std::string Channel::getName() const {
 		return name;
@@ -34,9 +33,16 @@ std::string Channel::getName() const {
 
 Channel::~Channel() {}
 
-void Channel::addUser(int fd){
-	users.push_back(fd);
+void Channel::addUser(int fd,  const std::string &nickname){
+	if (std::find(users.begin(), users.end(), fd) == users.end()) {
+		users.push_back(fd);
+	}
+
+	if (usersMap.find(nickname) == usersMap.end()) {
+		usersMap[nickname] = fd;
+	}
 }
+
 
 void Channel::addOperator(int fd) {
 	operators.push_back(fd);
@@ -52,8 +58,8 @@ bool Channel::isUserInvited(const std::string &nickname){
 			nickname) != invitedUsers.end();
 }
 
-bool Channel::isUserInChannel(int fd) {
-	return (std::find(users.begin(), users.end(), fd) != users.end());
+bool Channel::isUserInChannel(const std::string &nickname) {
+	return (usersMap.find(nickname) != usersMap.end());
 }
 
 bool Channel::isOperator(int fd) {
@@ -68,10 +74,17 @@ void Channel::setInviteOnly(bool status){
 	inviteOnly = status;
 }
 
-
-
 std::string Channel::getTopic() {
 	return topic;
+}
+
+int Channel::getUserFdByNickname(const std::string &nickname)
+{
+	std::map<std::string, int>::iterator it = usersMap.find(nickname);
+	if (it != usersMap.end()) {
+		return it->second;
+	}
+	return -1;
 }
 
 void Channel::setTopic(const std::string &newTopic) {
@@ -79,9 +92,29 @@ void Channel::setTopic(const std::string &newTopic) {
 }
 
 void Channel::broadcast(const std::string &message, int excludeFd) {
+
 	for (size_t i = 0; i < users.size(); ++i) {
 		if (static_cast<int>(users[i]) != excludeFd) {
 			send(users[i], message.c_str(), message.size(), 0);
+		}
+	}
+}
+
+void Channel::removeUser(int fd) {
+
+	std::vector<int>::iterator it = std::find(users.begin(), users.end(), fd);
+	if (it != users.end()) {
+		users.erase(it);
+		std::cout << "FD " << fd << " erased" << std::endl;
+	} else {
+		std::cout << "FD " << fd << " not found" << std::endl;
+	}
+
+	for (std::map<std::string, int>::iterator mapIt = usersMap.begin();
+											mapIt != usersMap.end(); ++mapIt) {
+		if (mapIt->second == fd) {
+			usersMap.erase(mapIt);
+			break;
 		}
 	}
 }

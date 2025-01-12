@@ -6,7 +6,7 @@
 /*   By: vmassoli <vmassoli@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 20:44:56 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/01/12 13:02:57 by vmassoli         ###   ########.fr       */
+/*   Updated: 2025/01/12 15:24:47 by vmassoli         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -245,4 +245,22 @@ void Server::addClient(int client_fd, const std::string &name,
 	std::cout << "Client added : FD = " << client_fd
 			  << ", Name = " << name
 			  << ", Nickname = " << nickname << std::endl;
+}
+
+void Server::handleCommand(const CommandParams &params)
+{
+	switch (params.commandType)
+	{
+		case CommandParams::JOIN:
+			handleJoin(params);
+			break;
+		case CommandParams::INVIT:
+			handleInvit(params);
+			break;
+		case CommandParams::KICK:
+			handleKick(params);
+			break;
+		default:
+			std::cerr << "Unknown command type!" << std::endl;
+	}
 }

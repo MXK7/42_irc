@@ -6,7 +6,7 @@
 /*   By: vmassoli <vmassoli@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 20:16:55 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/01/12 12:35:38 by vmassoli         ###   ########.fr       */
+/*   Updated: 2025/01/12 16:20:55 by vmassoli         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -59,6 +59,17 @@ private:
 	int port;
 	std::string password;
 
+	struct CommandParams
+	{
+		enum CommandType { JOIN, INVIT, KICK } commandType;
+		int client_fd;
+		int operator_fd;
+		std::string channelName;
+		std::string nickname;
+		std::vector<std::string> Arg;
+	};
+
+
 public:
 
 	static Server* instance;
@@ -72,19 +83,21 @@ public:
 	void handle_signal(int signal);
 	static void signal_handler(int signal);  // Fonction statique pour signal()
 
-	/*________________________________________*/
-
-	void handleCommand();
-
-	void handleJoin(int client_fd, const std::string &channelName, const std::string &nickname);
-	void handleInvit(int operator_fd, const std::string &channelName, const std::string &nickname);
-	// void handleKick(int client_fd, const std::string &channelName);
-	// void handleMode(int client_fd, const std::string &channelName);
-	// void handleTopic(int client_fd, const std::string &channelName);
-
 	/*__________________________________________*/
+
 	void addClient(int client_fd, const std::string &name, const std::string &nickname);
 	std::string getName(int client_fd);
 	std::string getNickname(int client_fd);
+
+
+	/*________________________________________*/
+
+	void handleCommand(const CommandParams &params);
+
+	void handleJoin(const CommandParams &params);
+	void handleInvit(const CommandParams &params);
+	void handleKick(const CommandParams &params);
+	// void handleMode(int client_fd, const std::string &channelName);
+	// void handleTopic(int client_fd, const std::string &channelName);
 
 };
