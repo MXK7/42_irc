@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Commands.cpp                                       :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: vmassoli <vmassoli@student.42.fr>          +#+  +:+       +#+        */
+/*   By: mehdi <mehdi@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/12 10:55:54 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/01/12 16:48:29 by vmassoli         ###   ########.fr       */
+/*   Updated: 2025/01/13 11:04:29 by mehdi            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -77,7 +77,7 @@ void Server::handleJoin(const CommandParams &params)
 				<< params.channelName << std::endl;
 
 		std::string joinMessage = ":" + getNickname(params.client_fd) + " JOIN " +
-			 params.channelName + "\n";
+			params.channelName + "\n";
 		send(params.client_fd, joinMessage.c_str(), joinMessage.size(), 0);
 
 		channel->broadcast(joinMessage, params.client_fd);
@@ -155,7 +155,7 @@ void Server::handleKick(const CommandParams &params)
 		return;
 	}
 
-	 if (!channel->isOperator(params.operator_fd)) {
+	if (!channel->isOperator(params.operator_fd)) {
 		std::cerr << "Error: You are not an operator in this channel!" << std::endl;
 		std::string errorMsg = "You are not an operator in this channel.\n";
 		send(params.operator_fd, errorMsg.c_str(), errorMsg.size(), 0);
@@ -164,7 +164,7 @@ void Server::handleKick(const CommandParams &params)
 
 	if (!channel->isUserInChannel(params.nickname)) {
 		std::cerr << "Error: User " << params.nickname
-					 << " is not in the channel!" << std::endl;
+					<< " is not in the channel!" << std::endl;
 		std::string errorMsg = "User " + params.nickname + " is not in the channel.\n";
 		send(params.operator_fd, errorMsg.c_str(), errorMsg.size(), 0);
 		return;
