@@ -6,7 +6,7 @@
 /*   By: vmassoli <vmassoli@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/12 10:55:54 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/01/12 16:48:29 by vmassoli         ###   ########.fr       */
+/*   Updated: 2025/01/15 14:50:08 by vmassoli         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -34,6 +34,15 @@ std::string Server::getNickname(int client_fd)
 		}
 	}
 	return "";
+}
+
+Channel* Server::getChannelByName(const std::string &name) {
+	for (size_t i = 0; i < channels.size(); ++i) {
+		if (channels[i]->getName() == name) {
+			return channels[i];
+		}
+	}
+	return NULL;
 }
 
 
@@ -184,4 +193,133 @@ void Server::handleKick(const CommandParams &params)
 
 	std::cout << "FD: " << params.client_fd << " kicked user " << params.nickname
 						<< " from channel " << params.channelName << std::endl;
+}
+
+
+void Server::handleTopic(int client_fd, const CommandParams &params) {
+	if (params.additionalParams.empty()) {
+		std::string errorMsg = "Error: No channel specified.\n";
+		send(client_fd, errorMsg.c_str(), errorMsg.size(), 0);
+		return;
+	}
+
+	const std::string &channelName = params.additionalParams[0];
+	Channel *channel = getChannelByName(channelName); // Implémenter getChannelByName si ce n'est pas fait
+
+	if (!channel) {
+		std::string errorMsg = "Error: Channel does not exist.\n";
+		send(client_fd, errorMsg.c_str(), errorMsg.size(), 0);
+		return;
+	}
+
+	if (params.additionalParams.size() == 1) {
+		const std::string &currentTopic = channel->getTopic();
+
+		if (currentTopic.empty()) {
+			std::string msg = "No topic is set for " + channelName + ".\n";
+			send(client_fd, msg.c_str(), msg.size(), 0);
+		} else {
+			std::string msg = "Current topic for " + channelName + ": " + currentTopic + "\n";
+			send(client_fd, msg.c_str(), msg.size(), 0);
+		}
+	} else {
+
+		const std::string &newTopic = params.additionalParams[1];
+
+
+		if (channel->isTopicLock() && !channel->isOperator(client_fd)) {
+			std::string errorMsg = "Error: Only channel operators can change the topic.\n";
+			send(client_fd, errorMsg.c_str(), errorMsg.size(), 0);
+			return;
+		}
+
+
+		channel->setTopic(newTopic);
+
+
+		std::string broadcastMsg = "Topic for " + channelName + " set to: " + newTopic + "\n";
+		channel->broadcast(broadcastMsg);
+
+
+		std::string confirmMsg = "Topic updated successfully.\n";
+		send(client_fd, confirmMsg.c_str(), confirmMsg.size(), 0);
+	}
+}
+
+void Server::handleMode(const CommandParams &params)
+{
+	const std::string &channelName = params.channelName;
+	const std::string &modes = params.additionalParams[0];
+	std::vector<std::string> modeParams(params.additionalParams.begin() + 1,
+							params.additionalParams.end());
+
+	Channel *channel = NULL;
+
+	for (size_t i = 0; i < channels.size(); ++i) {
+		if (channels[i]->getName() == channelName) {
+			channel = channels[i];
+			break;
+		}
+	}
+
+	if (!channel) {
+		std::string errorMsg = "Error: Channel " + channelName + " does not exist.\n";
+		send(params.client_fd, errorMsg.c_str(), errorMsg.size(), 0);
+		return;
+	}
+
+	bool addingMode = true;
+	size_t paramIndex = 0;
+
+	for (size_t i = 0; i < modes.size(); ++i) {
+		char mode = modes[i];
+		if (mode == '+') {
+			addingMode = true;
+			continue;
+		} else if (mode == '-') {
+			addingMode = false;
+			continue;
+		}
+
+		switch (mode) {
+		case 'i': // Invite-only
+			channel->setInviteOnly(addingMode);
+			break;
+		case 't': // Topic lock
+			channel->setTopicLock(addingMode);
+			break;
+		case 'k': // Channel key
+			if (addingMode) {
+				if (paramIndex >= modeParams.size()) {
+					std::string errorMsg = "Error: Missing parameter for +k mode.\n";
+					send(params.client_fd, errorMsg.c_str(), errorMsg.size(), 0);
+					return;
+				}
+				channel->setKey(modeParams[paramIndex++]);
+			} else {
+				channel->clearKey();
+			}
+			break;
+		case 'l': // User limit
+			if (addingMode) {
+				if (paramIndex >= modeParams.size()) {
+					std::string errorMsg = "Error: Missing parameter for +l mode.\n";
+					send(params.client_fd, errorMsg.c_str(), errorMsg.size(), 0);
+					return;
+				}
+				int limit = std::atoi(modeParams[paramIndex++].c_str());
+				channel->setUserLimit(limit);
+			} else {
+				channel->clearUserLimit();
+			}
+			break;
+		default:
+			std::string errorMsg = "Error: Unknown mode " + std::string(1, mode) + ".\n";
+			send(params.client_fd, errorMsg.c_str(), errorMsg.size(), 0);
+			return;
+		}
+	}
+
+	std::string successMsg = "Mode " + modes + " applied to " + channelName + ".\n";
+	send(params.client_fd, successMsg.c_str(), successMsg.size(), 0);
 }

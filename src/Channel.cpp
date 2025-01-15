@@ -66,6 +66,13 @@ bool Channel::isOperator(int fd) {
 	return std::find(operators.begin(), operators.end(), fd) != operators.end();
 }
 
+bool Channel::isTopicLock() const {
+		return isTopic;
+	}
+
+void Channel::setTopicLock(bool status){
+	isTopic = status;
+}
 bool Channel::isInviteOnly() const {
 	return (inviteOnly);
 }
@@ -118,3 +125,39 @@ void Channel::removeUser(int fd) {
 		}
 	}
 }
+
+void Channel::setKey(const std::string &newKey){
+	key = newKey;
+	isKey = true;
+}
+
+void Channel::clearKey() {
+	key = "";
+	isKey = false;
+}
+
+void Channel::setUserLimit(int limit) {
+	userLimit = limit;
+}
+
+void Channel::clearUserLimit() {
+	userLimit = -1;
+}
+
+bool Channel::hasKey() const {
+	return isKey;
+}
+
+bool Channel::isInviteOnly() const {
+	return inviteOnly;
+}
+
+int Channel::getUserLimit() const {
+	return userLimit;
+}
+
+std::string Channel::getKey() const {
+	return key;
+}
+
+

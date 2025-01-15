@@ -6,7 +6,7 @@
 /*   By: vmassoli <vmassoli@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 20:16:55 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/01/12 16:20:55 by vmassoli         ###   ########.fr       */
+/*   Updated: 2025/01/15 14:32:01 by vmassoli         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -67,6 +67,7 @@ private:
 		std::string channelName;
 		std::string nickname;
 		std::vector<std::string> Arg;
+		std::vector<std::string> additionalParams;
 	};
 
 
@@ -89,6 +90,8 @@ public:
 	std::string getName(int client_fd);
 	std::string getNickname(int client_fd);
 
+	Channel* getChannelByName(const std::string &name);
+
 
 	/*________________________________________*/
 
@@ -97,7 +100,7 @@ public:
 	void handleJoin(const CommandParams &params);
 	void handleInvit(const CommandParams &params);
 	void handleKick(const CommandParams &params);
-	// void handleMode(int client_fd, const std::string &channelName);
-	// void handleTopic(int client_fd, const std::string &channelName);
+	void handleMode(const CommandParams &params);
+	void handleTopic(int client_fd, const CommandParams &params);
 
 };

@@ -6,7 +6,7 @@
 /*   By: vmassoli <vmassoli@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 17:13:04 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/01/12 16:44:22 by vmassoli         ###   ########.fr       */
+/*   Updated: 2025/01/15 14:52:00 by vmassoli         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -49,6 +49,8 @@ public:
 	void addInvitedUser(const std::string &nickname);
 	bool isUserInChannel(const std::string &nickname);
 	bool isOperator(int fd);
+	bool isTopicLock() const;
+	void setTopicLock(bool status);
 	bool isUserInvited(const std::string &nickname);
 	bool isInviteOnly() const;
 	void setInviteOnly(bool status);
@@ -59,4 +61,14 @@ public:
 	void broadcast(const std::string &message, int excludeFd = -1);
 	void removeUser(int fd);
 
+	void setKey(const std::string &key);
+	void clearKey();
+	void setUserLimit(int limit);
+	void clearUserLimit();
+	bool hasKey() const;
+	int getUserLimit() const;
+	std::string getKey() const;
+
 };
+
+
