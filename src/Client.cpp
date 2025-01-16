@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Client.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: vmassoli <vmassoli@student.42.fr>          +#+  +:+       +#+        */
+/*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 13:24:16 by thlefebv          #+#    #+#             */
-/*   Updated: 2025/01/11 20:19:29 by vmassoli         ###   ########.fr       */
+/*   Updated: 2025/01/15 15:59:56 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -31,4 +31,16 @@ std::string Client::getNickname() const {
 
 int Client::getFd() const {
 	return fd;
+}
+
+void Client::setNickname(const std::string& nickname) {
+	this->nickname = nickname;
+}
+
+void Client::setName(const std::string& name) {
+	this->name = name;
+}
+
+void Client::setUsername(const std::string& username) {
+	this->username = username;
 }

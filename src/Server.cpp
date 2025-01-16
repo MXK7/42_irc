@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Server.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: vmassoli <vmassoli@student.42.fr>          +#+  +:+       +#+        */
+/*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 20:44:56 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/01/12 15:24:47 by vmassoli         ###   ########.fr       */
+/*   Updated: 2025/01/16 11:32:37 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -157,87 +157,95 @@ int Server::CreateSocket()
 
 int Server::HandlerConnexion()
 {
-	fd_set read_fds, temp_fds;
-	FD_ZERO(&read_fds);
-	FD_SET(server_fd, &read_fds);
+    fd_set read_fds, temp_fds;
+    FD_ZERO(&read_fds);
+    FD_SET(server_fd, &read_fds);
 
-	int max_fd = server_fd;
+    int max_fd = server_fd;
 
-	while (is_running)
-	{
-		temp_fds = read_fds;
+    while (is_running)
+    {
+        temp_fds = read_fds;
 
-		//Wait to check the fd to see if there is some activity
-		if (select(max_fd + 1, &temp_fds, NULL, NULL, NULL) < 0)
-		{
-			std::cerr << COLOR_RED << "Erreur dans select()." << COLOR_RESET << std::endl;
-			break;
-		}
+        // Attendre l'activité sur les sockets
+        if (select(max_fd + 1, &temp_fds, NULL, NULL, NULL) < 0)
+        {
+            std::cerr << COLOR_RED << "Erreur dans select()." << COLOR_RESET << std::endl;
+            break;
+        }
 
-		for (int fd = 0; fd <= max_fd; ++fd)
-		{
-			if (FD_ISSET(fd, &temp_fds))
-			{
-				if (fd == server_fd)
-				{
-					struct sockaddr_in client_addr; //New connexion
-					socklen_t client_len = sizeof(client_addr);
-					int client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &client_len);
+        for (int fd = 0; fd <= max_fd; ++fd)
+        {
+            if (FD_ISSET(fd, &temp_fds))
+            {
+                if (fd == server_fd) // Nouvelle connexion
+                {
+                    struct sockaddr_in client_addr;
+                    socklen_t client_len = sizeof(client_addr);
+                    int client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &client_len);
 
-					if (client_fd < 0)
+                    if (client_fd < 0)
+                    {
+                        std::cerr << COLOR_RED << "Erreur lors de l'acceptation d'une connexion." << COLOR_RESET << std::endl;
+                        continue;
+                    }
+
+                    // Ajouter le nouveau client
+                    addClient(client_fd, "ClientName", ""); // Pas de pseudonyme par défaut
+                    client_fds.push_back(client_fd);
+                    FD_SET(client_fd, &read_fds);
+                    if (client_fd > max_fd) max_fd = client_fd;
+
+                    std::cout << COLOR_GREEN << "Nouvelle connexion acceptée (FD: " << client_fd << ")." << COLOR_RESET << std::endl;
+
+                    // Envoyer un message de bienvenue initial
+                    std::string welcomeMsg = ":server NOTICE * :Welcome to the IRC server!\r\n";
+                    send(client_fd, welcomeMsg.c_str(), welcomeMsg.size(), 0);
+                }
+                else // Données provenant d'un client existant
+                {
+                    char buffer[1024];
+                    int bytes_read = recv(fd, buffer, sizeof(buffer) - 1, 0);
+
+                    if (bytes_read > 0) // Données reçues
+                    {
+                        buffer[bytes_read] = '\0';
+                        std::cout << "Message reçu du client " << fd << ": " << buffer << std::endl;
+
+                        // Traiter le message avec le parseur
+                        parseCommand(buffer, fd);
+                    }
+                    else if (bytes_read == 0) // Le client a fermé la connexion
 					{
-						std::cerr << COLOR_RED << "Erreur lors de l'acceptation d'une connexion." << COLOR_RESET << std::endl;
-						continue;
+						std::cout << "Client déconnecté (FD: " << fd << ")." << std::endl;
+
+						// Informer les autres clients de la déconnexion
+						std::string quitMessage = ":" + getNickname(fd) + " QUIT :Client disconnected.\r\n";
+						broadcastToChannels(fd, quitMessage);
+
+						// Supprimer le client
+						close(fd);
+						FD_CLR(fd, &read_fds);
+						client_fds.erase(std::remove(client_fds.begin(), client_fds.end(), fd), client_fds.end());
 					}
+                    else // Erreur de réception
+                    {
+                        std::cerr << COLOR_RED << "Erreur lors de la réception des données du client (FD: " << fd << ")." << COLOR_RESET << std::endl;
 
-					addClient(client_fd, "ClientName", "ClientNickname");
-
-					client_fds.push_back(client_fd);
-					FD_SET(client_fd, &read_fds);
-					if (client_fd > max_fd) max_fd = client_fd;
-
-					std::cout << COLOR_GREEN << "Nouvelle connexion acceptée (FD: " << client_fd << ")." << COLOR_RESET << std::endl;
-				}
-				else
-				{
-					char buffer[1024];
-					int bytes_read = recv(fd, buffer, sizeof(buffer) - 1, 0);
-
-					if (bytes_read > 0)
-{
-	buffer[bytes_read] = '\0';
-	std::cout << "Message reçu du client " << fd << ": " << buffer << std::endl;
-
-	std::string response = "Message reçu : "; // Réponse au client
-	response += buffer;
-	send(fd, response.c_str(), response.length(), 0);
+                        // Fermer proprement en cas d'erreur
+                        close(fd);
+                        FD_CLR(fd, &read_fds);
+                        client_fds.erase(std::remove(client_fds.begin(), client_fds.end(), fd), client_fds.end());
+                    }
+                }
+            }
+        }
+    }
+    close_all_clients();
+    close(server_fd);
+    return 0;
 }
-else if (bytes_read == 0) // Le client a fermé la connexion
-{
-	std::cout << "Client déconnecté (FD: " << fd << ")." << std::endl;
 
-	// Fermer proprement la connexion
-	close(fd);
-	FD_CLR(fd, &read_fds);
-	client_fds.erase(std::remove(client_fds.begin(), client_fds.end(), fd), client_fds.end());
-}
-else // Erreur de réception
-{
-	std::cerr << COLOR_RED << "Erreur lors de la réception des données du client (FD: " << fd << ")." << COLOR_RESET << std::endl;
-
-	// Fermer proprement en cas d'erreur
-	close(fd);
-	FD_CLR(fd, &read_fds);
-	client_fds.erase(std::remove(client_fds.begin(), client_fds.end(), fd), client_fds.end());
-}
-				}
-			}
-		}
-	}
-	close_all_clients();
-	close(server_fd);
-	return 0;
-}
 void Server::addClient(int client_fd, const std::string &name,
 						const std::string &nickname) {
 	Client* newClient= new Client(client_fd, name, nickname);
@@ -263,4 +271,23 @@ void Server::handleCommand(const CommandParams &params)
 		default:
 			std::cerr << "Unknown command type!" << std::endl;
 	}
+}
+
+void Server::broadcastToChannels(int client_fd, const std::string& message)
+{
+    // Récupérer le pseudonyme du client qui envoie le message
+    std::string senderNickname = getNickname(client_fd);
+
+    // Parcourir tous les canaux
+    for (size_t i = 0; i < channels.size(); ++i)
+    {
+        Channel* channel = channels[i];
+
+        // Vérifier si le client fait partie du canal
+        if (channel->isUserInChannel(senderNickname))
+        {
+            // Diffuser le message à tous les autres utilisateurs dans le canal
+            channel->broadcast(message, client_fd);
+        }
+    }
 }

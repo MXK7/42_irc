@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Client.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: vmassoli <vmassoli@student.42.fr>          +#+  +:+       +#+        */
+/*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 13:24:27 by thlefebv          #+#    #+#             */
-/*   Updated: 2025/01/11 20:44:08 by vmassoli         ###   ########.fr       */
+/*   Updated: 2025/01/15 15:58:55 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,6 +25,7 @@ class Client
 		int fd;
 		std::string name;
 		std::string nickname;
+		std::string username;
 
 	public:
 
@@ -35,4 +36,8 @@ class Client
 		std::string getName() const ;
 		std::string getNickname() const ;
 		int getFd() const ;
+
+		void setNickname(const std::string& nickname);
+		void setUsername(const std::string& username);
+		void setName(const std::string& name);
 };

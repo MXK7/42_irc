@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Commands.cpp                                       :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: vmassoli <vmassoli@student.42.fr>          +#+  +:+       +#+        */
+/*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/12 10:55:54 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/01/15 14:50:08 by vmassoli         ###   ########.fr       */
+/*   Updated: 2025/01/16 13:16:40 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -48,49 +48,59 @@ Channel* Server::getChannelByName(const std::string &name) {
 
 /*____________________________________________________________________*/
 
-void Server::handleJoin(const CommandParams &params)
+void Server::handleJoin(const CommandParams& params)
 {
-	// ?? on affiche le prompt : join fd =  , channel =   , nickname =     )
-	Channel *channel = NULL;
-	for (size_t i = 0; i < channels.size(); ++i) {
-		if (channels[i]->getName() == params.channelName) {
-			channel = channels[i];
-			break;
-		}
-	}
+    Channel* channel = NULL;
 
-	if (!channel) {
-		try {
-				channel = new Channel(params.channelName);
-				channels.push_back(channel);
+    // Vérifier si le canal existe déjà
+    for (size_t i = 0; i < channels.size(); ++i) 
+    {
+        if (channels[i]->getName() == params.channelName) 
+        {
+            channel = channels[i];
+            break;
+        }
+    }
 
-				channel->addOperator(params.client_fd);
-				std::cout << "New channel : " << params.channelName << std::endl;
-			} catch (const std::bad_alloc&) {
-				std::cerr << "ERROR" << std::endl;
-				return;
-			}
-		}
+    // Si le canal n'existe pas, le créer
+    if (!channel) 
+    {
+        try 
+        {
+            channel = new Channel(params.channelName);
+            channels.push_back(channel);
 
-	if (channel->isInviteOnly() && channel->isUserInvited(params.nickname)) {
-		std::cerr << "Mode invite-only " << params.client_fd <<
-					": acces denied"<< std::endl;
-		std::string errorMsg = "Channel is invite-only.\n";
-		send(params.client_fd, errorMsg.c_str(), errorMsg.size(), 0);
-		return;
-	}
-	if (!channel->isUserInChannel(params.nickname)) {
+            channel->addOperator(params.client_fd); // Ajouter l'opérateur
+            std::cout << "New channel created: " << params.channelName << std::endl;
+        }
+        catch (const std::bad_alloc&) 
+        {
+            std::cerr << "ERROR: Failed to allocate memory for channel.\n";
+            return;
+        }
+    }
 
-		channel->addUser(params.client_fd, params.nickname);
-		std::cout << "FD: " << params.client_fd << ") joined the channel "
-				<< params.channelName << std::endl;
+    // Vérifier si le canal est en mode invite-only et l'utilisateur est invité
+    if (channel->isInviteOnly() && !channel->isUserInvited(params.nickname)) 
+    {
+        std::string errorMsg = "ERROR: Channel is invite-only.\n";
+        send(params.client_fd, errorMsg.c_str(), errorMsg.size(), 0);
+        return;
+    }
 
-		std::string joinMessage = ":" + getNickname(params.client_fd) + " JOIN " +
-			 params.channelName + "\n";
-		send(params.client_fd, joinMessage.c_str(), joinMessage.size(), 0);
+    // Ajouter l'utilisateur au canal
+    if (!channel->isUserInChannel(params.nickname)) 
+    {
+        channel->addUser(params.client_fd, params.nickname);
+        std::cout << "FD: " << params.client_fd << " joined channel " << params.channelName << std::endl;
 
-		channel->broadcast(joinMessage, params.client_fd);
-	}
+        // Envoyer un message de confirmation
+        std::string joinMessage = ":" + getNickname(params.client_fd) + " JOIN " + params.channelName + "\n";
+        send(params.client_fd, joinMessage.c_str(), joinMessage.size(), 0);
+
+        // Diffuser le message aux autres utilisateurs du canal
+        channel->broadcast(joinMessage, params.client_fd);
+    }
 }
 
 /*___________________________________________________________*/
@@ -151,8 +161,10 @@ void Server::handleInvit(const CommandParams &params)
 void Server::handleKick(const CommandParams &params)
 {
 	Channel *channel = NULL;
-	for (size_t i = 0; i < channels.size(); ++i) {
-		if (channels[i]->getName() == params.channelName) {
+	for (size_t i = 0; i < channels.size(); ++i)
+    {
+		if (channels[i]->getName() == params.channelName)
+        {
 			channel = channels[i];
 			break;
 		}
@@ -196,130 +208,102 @@ void Server::handleKick(const CommandParams &params)
 }
 
 
-void Server::handleTopic(int client_fd, const CommandParams &params) {
-	if (params.additionalParams.empty()) {
-		std::string errorMsg = "Error: No channel specified.\n";
-		send(client_fd, errorMsg.c_str(), errorMsg.size(), 0);
-		return;
-	}
-
-	const std::string &channelName = params.additionalParams[0];
-	Channel *channel = getChannelByName(channelName); // Implémenter getChannelByName si ce n'est pas fait
-
-	if (!channel) {
-		std::string errorMsg = "Error: Channel does not exist.\n";
-		send(client_fd, errorMsg.c_str(), errorMsg.size(), 0);
-		return;
-	}
-
-	if (params.additionalParams.size() == 1) {
-		const std::string &currentTopic = channel->getTopic();
-
-		if (currentTopic.empty()) {
-			std::string msg = "No topic is set for " + channelName + ".\n";
-			send(client_fd, msg.c_str(), msg.size(), 0);
-		} else {
-			std::string msg = "Current topic for " + channelName + ": " + currentTopic + "\n";
-			send(client_fd, msg.c_str(), msg.size(), 0);
-		}
-	} else {
-
-		const std::string &newTopic = params.additionalParams[1];
-
-
-		if (channel->isTopicLock() && !channel->isOperator(client_fd)) {
-			std::string errorMsg = "Error: Only channel operators can change the topic.\n";
-			send(client_fd, errorMsg.c_str(), errorMsg.size(), 0);
-			return;
-		}
-
-
-		channel->setTopic(newTopic);
-
-
-		std::string broadcastMsg = "Topic for " + channelName + " set to: " + newTopic + "\n";
-		channel->broadcast(broadcastMsg);
-
-
-		std::string confirmMsg = "Topic updated successfully.\n";
-		send(client_fd, confirmMsg.c_str(), confirmMsg.size(), 0);
-	}
-}
-
-void Server::handleMode(const CommandParams &params)
+void Server::parseCommand(const std::string& message, int client_fd)
 {
-	const std::string &channelName = params.channelName;
-	const std::string &modes = params.additionalParams[0];
-	std::vector<std::string> modeParams(params.additionalParams.begin() + 1,
-							params.additionalParams.end());
+    std::istringstream iss(message);
+    std::string command;
+    iss >> command;
 
-	Channel *channel = NULL;
+    // Convertir la commande en majuscules
+    for (size_t i = 0; i < command.size(); ++i)
+        command[i] = std::toupper(command[i]);
 
-	for (size_t i = 0; i < channels.size(); ++i) {
-		if (channels[i]->getName() == channelName) {
-			channel = channels[i];
-			break;
-		}
-	}
+    std::cout << "[DEBUG] Received command: '" << command << "' from client FD: " << client_fd << std::endl;
 
-	if (!channel) {
-		std::string errorMsg = "Error: Channel " + channelName + " does not exist.\n";
-		send(params.client_fd, errorMsg.c_str(), errorMsg.size(), 0);
-		return;
-	}
+    if (command == "CAP") {
+        std::string subcommand;
+        iss >> subcommand;
+        if (subcommand == "LS") {
+            const char* response = "CAP * LS :\r\n"; // Aucune capacité supportée
+            send(client_fd, response, strlen(response), 0);
+            std::cout << "[DEBUG] CAP LS response sent to client FD " << client_fd << std::endl;
+        } else if (subcommand == "END") {
+            std::cout << "[DEBUG] CAP negotiation ended for client FD " << client_fd << std::endl;
+        }
+        return;
+    }
 
-	bool addingMode = true;
-	size_t paramIndex = 0;
+    if (command == "NICK") {
+        std::string nickname;
+        iss >> nickname;
 
-	for (size_t i = 0; i < modes.size(); ++i) {
-		char mode = modes[i];
-		if (mode == '+') {
-			addingMode = true;
-			continue;
-		} else if (mode == '-') {
-			addingMode = false;
-			continue;
-		}
+        if (nickname.empty()) {
+            const char* errorMsg = "ERROR: NICK command requires a nickname.\r\n";
+            send(client_fd, errorMsg, strlen(errorMsg), 0);
+            return;
+        }
 
-		switch (mode) {
-		case 'i': // Invite-only
-			channel->setInviteOnly(addingMode);
-			break;
-		case 't': // Topic lock
-			channel->setTopicLock(addingMode);
-			break;
-		case 'k': // Channel key
-			if (addingMode) {
-				if (paramIndex >= modeParams.size()) {
-					std::string errorMsg = "Error: Missing parameter for +k mode.\n";
-					send(params.client_fd, errorMsg.c_str(), errorMsg.size(), 0);
-					return;
-				}
-				channel->setKey(modeParams[paramIndex++]);
-			} else {
-				channel->clearKey();
-			}
-			break;
-		case 'l': // User limit
-			if (addingMode) {
-				if (paramIndex >= modeParams.size()) {
-					std::string errorMsg = "Error: Missing parameter for +l mode.\n";
-					send(params.client_fd, errorMsg.c_str(), errorMsg.size(), 0);
-					return;
-				}
-				int limit = std::atoi(modeParams[paramIndex++].c_str());
-				channel->setUserLimit(limit);
-			} else {
-				channel->clearUserLimit();
-			}
-			break;
-		default:
-			std::string errorMsg = "Error: Unknown mode " + std::string(1, mode) + ".\n";
-			send(params.client_fd, errorMsg.c_str(), errorMsg.size(), 0);
-			return;
-		}
-	}
+        // Vérifiez si le pseudonyme existe déjà
+        for (size_t i = 0; i < clients.size(); ++i) {
+            if (clients[i]->getNickname() == nickname) {
+                std::string errorMsg = "ERROR: Nickname '" + nickname + "' is already in use.\r\n";
+                send(client_fd, errorMsg.c_str(), errorMsg.size(), 0);
+                return;
+            }
+        }
 
-	std::string successMsg = "Mode " + modes + " applied to " + channelName + ".\n";
-	send(params.client_fd, successMsg.c_str(), successMsg.size(), 0);
+        // Attribuez le pseudonyme au client
+        for (size_t i = 0; i < clients.size(); ++i) {
+            if (clients[i]->getFd() == client_fd) {
+                clients[i]->setNickname(nickname);
+                std::cout << "[DEBUG] Client FD " << client_fd << " set nickname to " << nickname << std::endl;
+
+                // Confirmez le changement de pseudonyme
+                std::string nickResponse = ":" + nickname + " NICK " + nickname + "\r\n";
+                send(client_fd, nickResponse.c_str(), nickResponse.size(), 0);
+                return;
+            }
+        }
+    }
+
+    if (command == "USER") {
+        std::string username, hostname, servername, realname;
+        iss >> username >> hostname >> servername >> std::ws;
+        std::getline(iss, realname);
+
+        if (username.empty() || realname.empty()) {
+            const char* errorMsg = "ERROR: USER command requires a username and a realname.\r\n";
+            send(client_fd, errorMsg, strlen(errorMsg), 0);
+            return;
+        }
+
+        for (size_t i = 0; i < clients.size(); ++i) {
+            if (clients[i]->getFd() == client_fd) {
+                clients[i]->setName(realname); // Définir le nom réel
+                clients[i]->setUsername(username);
+
+                std::cout << "[DEBUG] Client FD " << client_fd << " set username to " << username << std::endl;
+
+                // Si le pseudonyme est défini, envoyez un message de bienvenue
+                if (!clients[i]->getNickname().empty()) {
+                    std::string welcomeMsg = ":server 001 " + clients[i]->getNickname() +
+                                             " :Welcome to the IRC server, " + clients[i]->getNickname() + "!\r\n";
+                    send(client_fd, welcomeMsg.c_str(), welcomeMsg.size(), 0);
+                    std::cout << "[DEBUG] Welcome message sent to client FD " << client_fd << std::endl;
+                }
+                return;
+            }
+        }
+    }
+    if (command == "JOIN") {
+    const char* errorMsg = "ERROR: JOIN command is not implemented yet.\r\n";
+    send(client_fd, errorMsg, strlen(errorMsg), 0);
+    std::cout << "[DEBUG] JOIN command received but not implemented.\n";
+    return;
+}
+    // Commande inconnue
+    else {
+        std::string errorMsg = "ERROR: Unknown command '" + command + "'.\r\n";
+        send(client_fd, errorMsg.c_str(), errorMsg.size(), 0);
+    }
 }

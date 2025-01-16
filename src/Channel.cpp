@@ -148,10 +148,6 @@ bool Channel::hasKey() const {
 	return isKey;
 }
 
-bool Channel::isInviteOnly() const {
-	return inviteOnly;
-}
-
 int Channel::getUserLimit() const {
 	return userLimit;
 }
