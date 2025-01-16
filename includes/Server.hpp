@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 20:16:55 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/01/16 13:16:01 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/01/16 14:26:40 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -98,6 +98,10 @@ public:
 	void broadcastToChannels(int client_fd, const std::string& message);
 
 	void parseCommand(const std::string& message, int client_fd);
+	void handleConnectionCommands(const std::string& command, std::istringstream& iss, int client_fd);
+	void handleOtherCommands(const std::string& command, std::istringstream& iss, int client_fd);
+
+
 	void handleCommand(const CommandParams &params);
 	void handleJoin(const CommandParams &params);
 	void handleInvit(const CommandParams &params);

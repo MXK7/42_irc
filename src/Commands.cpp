@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/12 10:55:54 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/01/16 13:16:40 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/01/16 14:26:42 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -220,20 +220,31 @@ void Server::parseCommand(const std::string& message, int client_fd)
 
     std::cout << "[DEBUG] Received command: '" << command << "' from client FD: " << client_fd << std::endl;
 
-    if (command == "CAP") {
-        std::string subcommand;
-        iss >> subcommand;
-        if (subcommand == "LS") {
-            const char* response = "CAP * LS :\r\n"; // Aucune capacité supportée
-            send(client_fd, response, strlen(response), 0);
-            std::cout << "[DEBUG] CAP LS response sent to client FD " << client_fd << std::endl;
-        } else if (subcommand == "END") {
-            std::cout << "[DEBUG] CAP negotiation ended for client FD " << client_fd << std::endl;
-        }
-        return;
+    // Gérer les commandes de connexion
+    if (command == "PASS" || command == "NICK" || command == "USER") {
+        handleConnectionCommands(command, iss, client_fd);
     }
+    // Gérer les autres commandes
+    else {
+        handleOtherCommands(command, iss, client_fd);
+    }
+}
 
-    if (command == "NICK") {
+void Server::handleConnectionCommands(const std::string& command, std::istringstream& iss, int client_fd)
+{
+    if (command == "PASS") {
+        std::string password;
+        iss >> password;
+
+        if (password != this->password) {
+            const char* errorMsg = "ERROR: Invalid password.\r\n";
+            send(client_fd, errorMsg, strlen(errorMsg), 0);
+            return;
+        }
+
+        std::cout << "[DEBUG] Client FD " << client_fd << " authenticated with password.\n";
+    }
+    else if (command == "NICK") {
         std::string nickname;
         iss >> nickname;
 
@@ -265,8 +276,7 @@ void Server::parseCommand(const std::string& message, int client_fd)
             }
         }
     }
-
-    if (command == "USER") {
+    else if (command == "USER") {
         std::string username, hostname, servername, realname;
         iss >> username >> hostname >> servername >> std::ws;
         std::getline(iss, realname);
@@ -295,13 +305,27 @@ void Server::parseCommand(const std::string& message, int client_fd)
             }
         }
     }
-    if (command == "JOIN") {
-    const char* errorMsg = "ERROR: JOIN command is not implemented yet.\r\n";
-    send(client_fd, errorMsg, strlen(errorMsg), 0);
-    std::cout << "[DEBUG] JOIN command received but not implemented.\n";
-    return;
 }
-    // Commande inconnue
+
+void Server::handleOtherCommands(const std::string& command, std::istringstream& iss, int client_fd)
+{
+    if (command == "CAP") {
+        std::string subcommand;
+        iss >> subcommand;
+
+        if (subcommand == "LS") {
+            const char* response = "CAP * LS :\r\n"; // Aucune capacité supportée
+            send(client_fd, response, strlen(response), 0);
+            std::cout << "[DEBUG] CAP LS response sent to client FD " << client_fd << std::endl;
+        } else if (subcommand == "END") {
+            std::cout << "[DEBUG] CAP negotiation ended for client FD " << client_fd << std::endl;
+        }
+    }
+    else if (command == "JOIN") {
+        const char* errorMsg = "ERROR: JOIN command is not implemented yet.\r\n";
+        send(client_fd, errorMsg, strlen(errorMsg), 0);
+        std::cout << "[DEBUG] JOIN command received but not implemented.\n";
+    }
     else {
         std::string errorMsg = "ERROR: Unknown command '" + command + "'.\r\n";
         send(client_fd, errorMsg.c_str(), errorMsg.size(), 0);
