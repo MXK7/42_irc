@@ -157,3 +157,7 @@ std::string Channel::getKey() const {
 }
 
 
+void Channel::removeOperator(int fd)
+{
+    operators.erase(std::remove(operators.begin(), operators.end(), fd), operators.end());
+}

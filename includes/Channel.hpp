@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Channel.hpp                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: vmassoli <vmassoli@student.42.fr>          +#+  +:+       +#+        */
+/*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 17:13:04 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/01/15 14:52:00 by vmassoli         ###   ########.fr       */
+/*   Updated: 2025/01/17 15:11:37 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -68,6 +68,7 @@ public:
 	bool hasKey() const;
 	int getUserLimit() const;
 	std::string getKey() const;
+	void removeOperator(int fd);
 
 };
 

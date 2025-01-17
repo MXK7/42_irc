@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 13:24:16 by thlefebv          #+#    #+#             */
-/*   Updated: 2025/01/15 15:59:56 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/01/17 15:02:40 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -44,3 +44,5 @@ void Client::setName(const std::string& name) {
 void Client::setUsername(const std::string& username) {
 	this->username = username;
 }
+
+

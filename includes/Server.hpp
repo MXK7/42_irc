@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 20:16:55 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/01/16 14:26:40 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/01/17 15:16:38 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -62,7 +62,7 @@ private:
 
 	struct CommandParams
 	{
-		enum CommandType { JOIN, INVIT, KICK } commandType;
+		enum CommandType { JOIN, INVIT, KICK, MODE} commandType;
 		int client_fd;
 		int operator_fd;
 		std::string channelName;
@@ -108,5 +108,8 @@ public:
 	void handleKick(const CommandParams &params);
 	void handleMode(const CommandParams &params);
 	void handleTopic(int client_fd, const CommandParams &params);
+	void parseModeOptions(const std::vector<std::string>& args, CommandParams& params);
+	Client* getClientByNickname(const std::string& nickname);
+	void handleModeCommand(std::istringstream& iss, int client_fd);
 
 };
