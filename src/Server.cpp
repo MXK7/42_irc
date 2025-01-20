@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 20:44:56 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/01/16 11:32:37 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/01/20 14:50:19 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -255,23 +255,6 @@ void Server::addClient(int client_fd, const std::string &name,
 			  << ", Nickname = " << nickname << std::endl;
 }
 
-void Server::handleCommand(const CommandParams &params)
-{
-	switch (params.commandType)
-	{
-		case CommandParams::JOIN:
-			handleJoin(params);
-			break;
-		case CommandParams::INVIT:
-			handleInvit(params);
-			break;
-		case CommandParams::KICK:
-			handleKick(params);
-			break;
-		default:
-			std::cerr << "Unknown command type!" << std::endl;
-	}
-}
 
 void Server::broadcastToChannels(int client_fd, const std::string& message)
 {
