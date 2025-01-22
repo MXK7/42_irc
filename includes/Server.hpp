@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 20:16:55 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/01/20 16:43:45 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/01/22 11:27:10 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -111,5 +111,9 @@ public:
 	void parseModeOptions(const std::vector<std::string>& args, CommandParams& params);
 	Client* getClientByNickname(const std::string& nickname);
 	void handleModeCommand(std::istringstream& iss, int client_fd);
+	void sendError(int client_fd, const std::string& errorCode, const std::string& command, const std::string& message);
+	std::string cleanMessage(const std::string& message);
+	void sendWelcomeMessage(int client_fd);
+
 
 };

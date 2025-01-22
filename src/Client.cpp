@@ -6,23 +6,26 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 13:24:16 by thlefebv          #+#    #+#             */
-/*   Updated: 2025/01/17 15:02:40 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/01/22 15:18:13 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../includes/Channel.hpp"
 #include "../includes/Server.hpp"
 
-// Client::Client() {}
 
 Client::~Client() {}
 
 
-Client::Client(int fd, const std::string& name, const std::string& nickname)
-	: fd(fd), name(name), nickname(nickname) {}
+ Client::Client(int fd, const std::string& name, const std::string& nickname)
+        : fd(fd), name(name), nickname(nickname), username(""), is_authenticated(false) {}
 
 std::string Client::getName() const {
 	return name;
+}
+
+std::string Client::getUsername() const {
+	return username;
 }
 
 std::string Client::getNickname() const {

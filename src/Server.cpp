@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 20:44:56 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/01/20 14:50:19 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/01/22 14:53:39 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -155,87 +155,86 @@ int Server::CreateSocket()
 	return 0;
 }
 
-int Server::HandlerConnexion()
-{
+int Server::HandlerConnexion() {
     fd_set read_fds, temp_fds;
     FD_ZERO(&read_fds);
     FD_SET(server_fd, &read_fds);
 
     int max_fd = server_fd;
 
-    while (is_running)
-    {
+    while (is_running) {
         temp_fds = read_fds;
 
         // Attendre l'activité sur les sockets
-        if (select(max_fd + 1, &temp_fds, NULL, NULL, NULL) < 0)
-        {
+        if (select(max_fd + 1, &temp_fds, NULL, NULL, NULL) < 0) {
             std::cerr << COLOR_RED << "Erreur dans select()." << COLOR_RESET << std::endl;
             break;
         }
 
-        for (int fd = 0; fd <= max_fd; ++fd)
-        {
-            if (FD_ISSET(fd, &temp_fds))
-            {
-                if (fd == server_fd) // Nouvelle connexion
-                {
+        for (int fd = 0; fd <= max_fd; ++fd) {
+            if (FD_ISSET(fd, &temp_fds)) {
+                if (fd == server_fd) { // Nouvelle connexion
                     struct sockaddr_in client_addr;
                     socklen_t client_len = sizeof(client_addr);
                     int client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &client_len);
 
-                    if (client_fd < 0)
-                    {
+                    if (client_fd < 0) {
                         std::cerr << COLOR_RED << "Erreur lors de l'acceptation d'une connexion." << COLOR_RESET << std::endl;
                         continue;
                     }
 
-                    // Ajouter le nouveau client
-                    addClient(client_fd, "ClientName", ""); // Pas de pseudonyme par défaut
+                    // Ajouter un client avec un pseudonyme vide
+                    addClient(client_fd, "", "");
+
+                    // Message de bienvenue pour un nouveau client
+                    const std::string welcomeMessage = ":irc.server 001 Welcome to the IRC server!\r\n"
+                                                       ":irc.server 002 Please set your nickname using the NICK command.\r\n";
+                    send(client_fd, welcomeMessage.c_str(), welcomeMessage.size(), 0);
+
+                    // Mise à jour des descripteurs
                     client_fds.push_back(client_fd);
                     FD_SET(client_fd, &read_fds);
                     if (client_fd > max_fd) max_fd = client_fd;
 
                     std::cout << COLOR_GREEN << "Nouvelle connexion acceptée (FD: " << client_fd << ")." << COLOR_RESET << std::endl;
-
-                    // Envoyer un message de bienvenue initial
-                    std::string welcomeMsg = ":server NOTICE * :Welcome to the IRC server!\r\n";
-                    send(client_fd, welcomeMsg.c_str(), welcomeMsg.size(), 0);
-                }
-                else // Données provenant d'un client existant
-                {
+                } else { // Données d'un client existant
                     char buffer[1024];
                     int bytes_read = recv(fd, buffer, sizeof(buffer) - 1, 0);
 
-                    if (bytes_read > 0) // Données reçues
-                    {
+                    if (bytes_read > 0) { // Données reçues
                         buffer[bytes_read] = '\0';
                         std::cout << "Message reçu du client " << fd << ": " << buffer << std::endl;
 
-                        // Traiter le message avec le parseur
+                        // Traiter la commande
                         parseCommand(buffer, fd);
-                    }
-                    else if (bytes_read == 0) // Le client a fermé la connexion
-					{
-						std::cout << "Client déconnecté (FD: " << fd << ")." << std::endl;
+                    } else if (bytes_read == 0) { // Déconnexion
+                        std::cout << "Client déconnecté (FD: " << fd << ")." << std::endl;
 
-						// Informer les autres clients de la déconnexion
-						std::string quitMessage = ":" + getNickname(fd) + " QUIT :Client disconnected.\r\n";
-						broadcastToChannels(fd, quitMessage);
+                        // Diffuser un message de déconnexion
+                        std::string quitMessage = ":" + getNickname(fd) + " QUIT :Client disconnected.\r\n";
+                        broadcastToChannels(fd, quitMessage);
 
-						// Supprimer le client
-						close(fd);
-						FD_CLR(fd, &read_fds);
-						client_fds.erase(std::remove(client_fds.begin(), client_fds.end(), fd), client_fds.end());
-					}
-                    else // Erreur de réception
-                    {
-                        std::cerr << COLOR_RED << "Erreur lors de la réception des données du client (FD: " << fd << ")." << COLOR_RESET << std::endl;
-
-                        // Fermer proprement en cas d'erreur
+                        // Nettoyage
                         close(fd);
                         FD_CLR(fd, &read_fds);
-                        client_fds.erase(std::remove(client_fds.begin(), client_fds.end(), fd), client_fds.end());
+                        for (std::vector<int>::iterator it = client_fds.begin(); it != client_fds.end(); ++it) {
+                            if (*it == fd) {
+                                client_fds.erase(it);
+                                break;
+                            }
+                        }
+                    } else { // Erreur
+                        std::cerr << COLOR_RED << "Erreur lors de la réception des données du client (FD: " << fd << ")." << COLOR_RESET << std::endl;
+
+                        // Fermeture propre
+                        close(fd);
+                        FD_CLR(fd, &read_fds);
+                        for (std::vector<int>::iterator it = client_fds.begin(); it != client_fds.end(); ++it) {
+                            if (*it == fd) {
+                                client_fds.erase(it);
+                                break;
+                            }
+                        }
                     }
                 }
             }
@@ -246,14 +245,17 @@ int Server::HandlerConnexion()
     return 0;
 }
 
-void Server::addClient(int client_fd, const std::string &name,
-						const std::string &nickname) {
-	Client* newClient= new Client(client_fd, name, nickname);
-	clients.push_back(newClient);
-	std::cout << "Client added : FD = " << client_fd
-			  << ", Name = " << name
-			  << ", Nickname = " << nickname << std::endl;
+
+void Server::addClient(int client_fd, const std::string &name, const std::string &nickname) {
+    Client* newClient = new Client(client_fd, name, nickname);
+    clients.push_back(newClient);
+
+    // Affichage pour debug
+    std::cout << "Client added : FD = " << client_fd
+              << ", Name = " << name
+              << ", Nickname = " << nickname << std::endl;
 }
+
 
 
 void Server::broadcastToChannels(int client_fd, const std::string& message)
@@ -273,4 +275,22 @@ void Server::broadcastToChannels(int client_fd, const std::string& message)
             channel->broadcast(message, client_fd);
         }
     }
+}
+
+void Server::sendWelcomeMessage(int client_fd)
+{
+    std::ostringstream welcomeMsg;
+    welcomeMsg << ":irc.server 001 " << getNickname(client_fd) << " :Welcome to the IRC server!\r\n"
+               << ":irc.server 002 " << getNickname(client_fd) << " :Your host is irc.server, running version 1.0\r\n"
+               << ":irc.server 003 " << getNickname(client_fd) << " :This server was created today\r\n";
+
+    send(client_fd, welcomeMsg.str().c_str(), welcomeMsg.str().size(), 0);
+    std::cout << "[DEBUG] Welcome message sent to client FD: " << client_fd << std::endl;
+}
+
+void Server::sendError(int client_fd, const std::string& errorCode, const std::string& command, const std::string& message)
+{
+    std::ostringstream errorMsg;
+    errorMsg << ":irc.server " << errorCode << " " << getNickname(client_fd) << " " << command << " :" << message << "\r\n";
+    send(client_fd, errorMsg.str().c_str(), errorMsg.str().size(), 0);
 }
