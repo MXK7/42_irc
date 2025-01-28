@@ -6,14 +6,12 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 13:24:27 by thlefebv          #+#    #+#             */
-/*   Updated: 2025/01/22 15:17:32 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/01/28 15:55:26 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #pragma once
 
-// #include "Server.hpp"
-// #include "Channel.hpp"
 #include <string>
 #include <vector>
 
@@ -45,5 +43,5 @@ class Client
 
 		bool isAuthenticated() const { return is_authenticated; }
     	void authenticate() { is_authenticated = true; }
-
+		bool notregistered() const { return !is_authenticated; }
 };

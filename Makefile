@@ -10,7 +10,11 @@ SRC_FILES     = main \
 				Server \
 				Channel \
 				Client \
-				Commands
+				Commands\
+				Kick\
+				Join\
+				Mode\
+				Invite\
 
 
 SRC           = $(addprefix $(SRC_DIR), $(addsuffix .cpp, $(SRC_FILES)))

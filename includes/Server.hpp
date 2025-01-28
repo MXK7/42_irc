@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 20:16:55 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/01/22 11:27:10 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/01/28 15:54:25 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -106,14 +106,27 @@ public:
 	void handleJoin(const CommandParams &params);
 	void handleInvit(const CommandParams &params);
 	void handleKick(const CommandParams &params);
+
 	void handleMode(const CommandParams &params);
 	void handleTopic(int client_fd, const CommandParams &params);
 	void parseModeOptions(const std::vector<std::string>& args, CommandParams& params);
-	Client* getClientByNickname(const std::string& nickname);
 	void handleModeCommand(std::istringstream& iss, int client_fd);
 	void sendError(int client_fd, const std::string& errorCode, const std::string& command, const std::string& message);
 	std::string cleanMessage(const std::string& message);
 	void sendWelcomeMessage(int client_fd);
 
+	void sendModeResponse(int client_fd, const std::string& nickname, const std::string& channelName, const std::string& mode, const std::string& extra);
+	std::vector<std::string> split_cmd(const std::string& s);
+
+	Client* getClientByNickname(const std::string& nickname);
+	Client* getClientByUsername(const std::string& username);
+	Client* getClientByFd(int fd);
+	Client* getClientByName(const std::string& name);
+
+	bool notregistered(int client_fd);
+	void client_authen(int client_fd, const std::string& message);
+	void sendMessage(int client_fd, const std::string& message);
+	void set_nickname(const std::string& message, int client_fd);
+	void set_username(const std::string& message, int client_fd);
 
 };
