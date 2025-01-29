@@ -20,7 +20,7 @@ int main(int argc, char **argv)
     Server server(port, password);
 
     if (server.CreateSocket() == 0) // Si CreateSocket retourne 0, on lance HandlerConnexion
-    server.HandlerConnexion();
+        server.HandlerConnexion();
     else
     {
         std::cerr << "Erreur lors de la création du serveur." << std::endl;
