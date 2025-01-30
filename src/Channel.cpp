@@ -98,13 +98,16 @@ void Channel::setTopic(const std::string &newTopic) {
 	topic = newTopic;
 }
 
-void Channel::broadcast(const std::string &message, int excludeFd) {
-
-	for (size_t i = 0; i < users.size(); ++i) {
-		if (static_cast<int>(users[i]) != excludeFd) {
-			send(users[i], message.c_str(), message.size(), 0);
-		}
-	}
+void Channel::broadcast(const std::string &message, int excludeFd) 
+{
+    for (size_t i = 0; i < users.size(); ++i) 
+    {
+        if (users[i] != excludeFd)  // Ne pas envoyer le message à celui qui l'a envoyé
+        {
+            send(users[i], message.c_str(), message.size(), 0);
+            std::cout << "[DEBUG] Message envoyé à FD " << users[i] << ": " << message << std::endl;
+        }
+    }
 }
 
 void Channel::removeUser(int fd) {

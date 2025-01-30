@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 13:24:16 by thlefebv          #+#    #+#             */
-/*   Updated: 2025/01/22 15:18:13 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/01/30 13:32:59 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -49,3 +49,10 @@ void Client::setUsername(const std::string& username) {
 }
 
 
+int Server::getClientFdByNickname(const std::string& nickname)
+{
+    Client* client = getClientByNickname(nickname);
+    if (client)
+        return client->getFd();
+    return -1; // Aucun client trouvé
+}

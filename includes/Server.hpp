@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 20:16:55 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/01/29 09:42:52 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/01/30 13:32:31 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -128,5 +128,7 @@ public:
 	void sendMessage(int client_fd, const std::string& message);
 	void set_nickname(const std::string& message, int client_fd);
 	void set_username(const std::string& message, int client_fd);
+	Channel* findChannel(const std::string& channelName);
+	int getClientFdByNickname(const std::string& nickname);
 
 };

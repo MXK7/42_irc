@@ -6,12 +6,11 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/28 10:25:46 by thlefebv          #+#    #+#             */
-/*   Updated: 2025/01/28 14:11:25 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/01/30 16:25:04 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../includes/Server.hpp"
-
 
 void Server::sendModeResponse(int client_fd, const std::string& nickname, const std::string& channelName, const std::string& mode, const std::string& extra)
 {
@@ -152,11 +151,18 @@ void Server::handleModeCommand(std::istringstream& iss, int client_fd)
     std::string channelName;
     iss >> channelName;
 
+    if (channelName == getNickname(client_fd)) 
+    {
+        std::string response = ":" + getNickname(client_fd) + " MODE " + getNickname(client_fd) + " +i\r\n";
+        sendMessage(client_fd, response);  // ✅ Utilisation de sendMessage()
+        std::cout << "[DEBUG] Confirmed MODE +i for user " << channelName << std::endl;
+        return;
+    }
+
+
     if (channelName.empty())
     {
-        std::string errorMsg = ":" + getNickname(client_fd) + 
-                               " 461 MODE :Not enough parameters\r\n";
-        send(client_fd, errorMsg.c_str(), errorMsg.size(), 0);
+        sendError(client_fd, "461", "MODE", "Not enough parameters"); // 461: ERR_NEEDMOREPARAMS
         return;
     }
 
@@ -164,17 +170,13 @@ void Server::handleModeCommand(std::istringstream& iss, int client_fd)
 
     if (!channel)
     {
-        std::string errorMsg = ":" + getNickname(client_fd) +
-                               " 403 " + channelName + " :No such channel\r\n";
-        send(client_fd, errorMsg.c_str(), errorMsg.size(), 0);
+        sendError(client_fd, "403", "MODE", "No such channel"); // 403: ERR_NOSUCHCHANNEL
         return;
     }
 
     if (!channel->isOperator(client_fd))
     {
-        std::string errorMsg = ":" + getNickname(client_fd) +
-                               " 482 " + channelName + " :You're not channel operator\r\n";
-        send(client_fd, errorMsg.c_str(), errorMsg.size(), 0);
+        sendError(client_fd, "482", "MODE", "You're not channel operator"); // 482: ERR_CHANOPRIVSNEEDED
         return;
     }
 
@@ -202,6 +204,7 @@ void Server::handleModeCommand(std::istringstream& iss, int client_fd)
 
     handleMode(params);
 }
+
 
 void Server::parseModeOptions(const std::vector<std::string>& args, CommandParams& params)
 {

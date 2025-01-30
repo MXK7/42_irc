@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/12 10:55:54 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/01/29 14:52:05 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/01/30 17:11:16 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -27,12 +27,12 @@ std::string Server::getName(int client_fd)
 
 std::string Server::getNickname(int fd)
 {
-    for (size_t i = 0; i < clients.size(); ++i)
-    {
-        if (clients[i]->getFd() == fd) // Vérifier avec le bon FD
-            return clients[i]->getNickname();
-    }
-    return "*"; // Retourne "*" si aucun client trouvé
+	for (size_t i = 0; i < clients.size(); ++i)
+	{
+		if (clients[i]->getFd() == fd) // Vérifier avec le bon FD
+			return clients[i]->getNickname();
+	}
+	return "*"; // Retourne "*" si aucun client trouvé
 }
 
 
@@ -59,100 +59,98 @@ Client* Server::getClientByNickname(const std::string& nickname)
 
 void Server::parseCommand(const std::string& message, int client_fd)
 {
-    // Nettoyer les caractères parasites (\r\n)
-    std::string clearMessage = cleanMessage(message);
+	std::string clearMessage = cleanMessage(message);
 
-    std::istringstream iss(clearMessage);
-    std::string command;
-    iss >> command;
+	std::istringstream iss(clearMessage);
+	std::string command;
+	iss >> command;
 
-    // Convertir la commande en majuscules
-    for (size_t i = 0; i < command.size(); ++i)
-        command[i] = static_cast<char>(std::toupper(command[i]));
+	std::cout << "[DEBUG COMMANDE] Commande brute reçue: " << message << std::endl;
 
-    std::cout << "[DEBUG] Received command: '" << command << "' from client FD: " << client_fd << std::endl;
+	// Convertir la commande en majuscules
+	for (size_t i = 0; i < command.size(); ++i)
+		command[i] = static_cast<char>(std::toupper(command[i]));
 
-    if (command == "PASS" || command == "NICK" || command == "USER" || command == "CAP")
-    {
-        handleConnexionCommands(command, iss, client_fd);
-        return;
-    }
+	std::cout << "[DEBUG] Received command: '" << command << "' from client FD: " << client_fd << std::endl;
 
-    // Vérifier si le client est enregistré avant de traiter d'autres commandes
-    if (notregistered(client_fd))
-    {
-        sendError(client_fd, "451", command, "You have not registered"); // 451: ERR_NOTREGISTERED
-        return;
-    }
+	if (command == "PASS" || command == "NICK" || command == "USER" || command == "CAP" || command == "PING" || command == "PRIVMSG")
+	{
+		handleConnexionCommands(command, iss, client_fd);
+		return;
+	}
 
-    if (command == "MODE")
-    {
-        std::string target, mode;
-        iss >> target >> mode;
+	if (notregistered(client_fd))
+	{
+		sendError(client_fd, "451", command, "You have not registered"); // 451: ERR_NOTREGISTERED
+		return;
+	}
 
-        if (target.empty())
-        {
-            sendError(client_fd, "461", "MODE", "Not enough parameters");
-            return;
-        }
-        std::string response = ":server MODE " + target + " " + mode + "\r\n";
-        send(client_fd, response.c_str(), response.size(), 0);
-        return;
-    }
-    else if (command == "KICK")
-    {
-        CommandParams params;
-        params.commandType = CommandParams::KICK;
-        params.client_fd = client_fd;
-        params.operator_fd = client_fd;
-        iss >> params.channelName >> params.nickname;
-        handleKick(params);
-        return;
-    }
-    else if (command == "JOIN")
-    {
-        std::string channelName;
-        iss >> channelName;
+	if (command == "MODE")
+	{
+		std::string target, mode;
+		iss >> target >> mode;
 
-        if (channelName.empty() || channelName[0] != '#')
-        {
-            sendError(client_fd, "476", "JOIN", "Invalid channel name");
-            return;
-        }
+		if (target.empty())
+		{
+			sendError(client_fd, "461", "MODE", "Not enough parameters");
+			return;
+		}
+		std::string response = ":server MODE " + target + " " + mode + "\r\n";
+		sendMessage(client_fd, response);
+		return;
+	}
+	else if (command == "KICK")
+	{
+		CommandParams params;
+		params.commandType = CommandParams::KICK;
+		params.client_fd = client_fd;
+		params.operator_fd = client_fd;
+		iss >> params.channelName >> params.nickname;
+		handleKick(params);
+		return;
+	}
+	else if (command == "JOIN")
+	{
+		std::string channelName;
+		iss >> channelName;
 
-        CommandParams params;
-        params.commandType = CommandParams::JOIN;
-        params.client_fd = client_fd;
-        params.channelName = channelName;
+		if (channelName.empty() || channelName[0] != '#')
+		{
+			sendError(client_fd, "476", "JOIN", "Invalid channel name");
+			return;
+		}
 
-        handleJoin(params);
-        return;
-    }
-    else if (command == "INVITE")
-    {
-        std::string nickname, channelName;
-        iss >> nickname >> channelName;
+		CommandParams params;
+		params.commandType = CommandParams::JOIN;
+		params.client_fd = client_fd;
+		params.channelName = channelName;
 
-        if (nickname.empty() || channelName.empty())
-        {
-            sendError(client_fd, "461", "INVITE", "Not enough parameters");
-            return;
-        }
+		handleJoin(params);
+		return;
+	}
+	else if (command == "INVITE")
+	{
+		std::string nickname, channelName;
+		iss >> nickname >> channelName;
 
-        CommandParams params;
-        params.commandType = CommandParams::INVIT;
-        params.client_fd = client_fd;
-        params.operator_fd = client_fd;
-        params.channelName = channelName;
-        params.nickname = nickname;
+		if (nickname.empty() || channelName.empty())
+		{
+			sendError(client_fd, "461", "INVITE", "Not enough parameters");
+			return;
+		}
 
-        handleInvit(params);
-        return;
-    }
-    else
-    {
-        sendError(client_fd, "421", command, "Unknown command");
-    }
+		CommandParams params;
+		params.commandType = CommandParams::INVIT;
+		params.client_fd = client_fd;
+		params.operator_fd = client_fd;
+		params.channelName = channelName;
+		params.nickname = nickname;
+
+		handleInvit(params);
+		return;
+	}
+	else
+		sendError(client_fd, "421", command, "Unknown command");
 }
 
 
@@ -170,61 +168,65 @@ void Server::handleConnexionCommands(const std::string& command, std::istringstr
 
 		if (password != this->password)
 		{
-			std::string errorMsg = ":server 464 * :Password incorrect\r\n"; // IRC standard: ERR_PASSWDMISMATCH
-			send(client_fd, errorMsg.c_str(), errorMsg.size(), 0);
+			sendError(client_fd, "464", "PASS", "Password incorrect"); // 464: ERR_PASSWDMISMATCH
 			close(client_fd); // Déconnexion après échec
 			return;
 		}
 
 		std::cout << "[DEBUG] Client FD " << client_fd << " authenticated with password.\n";
-
-		// ⚠️ Important : Envoyer un message de confirmation à Irssi
-		std::string passConfirm = ":server NOTICE * :Password accepted, proceed with NICK and USER\r\n";
-		send(client_fd, passConfirm.c_str(), passConfirm.size(), 0);
+		sendMessage(client_fd, ":server NOTICE * :Password accepted, proceed with NICK and USER\r\n");// ⚠️ Important : Envoyer un message de confirmation à Irssi
 	}
 
-	else if (command == "NICK")
-	{
-		std::string nickname;
-		iss >> nickname;
+else if (command == "NICK")
+{
+    std::string newNickname;
+    iss >> newNickname;
 
-		if (nickname.empty())
-		{
-			std::string errorMsg = ":server 431 * :No nickname given\r\n"; // 431: ERR_NONICKNAMEGIVEN
-			send(client_fd, errorMsg.c_str(), errorMsg.size(), 0);
-			return;
-		}
+    if (newNickname.empty())
+    {
+        sendError(client_fd, "431", "NICK", "No nickname given"); // 431: ERR_NONICKNAMEGIVEN
+        return;
+    }
 
-		if (nickname.find(' ') != std::string::npos || nickname.find(',') != std::string::npos)
-		{
-			std::string errorMsg = ":server 432 " + nickname + " :Erroneous nickname\r\n"; // 432: ERR_ERRONEOUSNICKNAME
-			send(client_fd, errorMsg.c_str(), errorMsg.size(), 0);
-			return;
-		}
+    if (newNickname.find(' ') != std::string::npos || newNickname.find(',') != std::string::npos)
+    {
+        sendError(client_fd, "432", "NICK", "Erroneous nickname"); // 432: ERR_ERRONEOUSNICKNAME
+        return;
+    }
 
-		for (size_t i = 0; i < clients.size(); ++i)
-		{
-			if (clients[i]->getNickname() == nickname)
-			{
-				std::string errorMsg = ":server 433 * " + nickname + " :Nickname is already in use\r\n"; // 433: ERR_NICKNAMEINUSE
-				send(client_fd, errorMsg.c_str(), errorMsg.size(), 0);
-				return;
-			}
-		}
+    // Vérifier si le pseudonyme est déjà utilisé
+    for (size_t i = 0; i < clients.size(); ++i)
+    {
+        if (clients[i]->getNickname() == newNickname)
+        {
+            sendError(client_fd, "433", "NICK", "Nickname is already in use"); // 433: ERR_NICKNAMEINUSE
+            return;
+        }
+    }
 
-		for (size_t i = 0; i < clients.size(); ++i)
-		{
-			if (clients[i]->getFd() == client_fd)
-			{
-				clients[i]->setNickname(nickname);
-				std::cout << "[DEBUG] Client FD " << client_fd << " set nickname to " << nickname << std::endl;
+    // Récupérer l'ancien pseudo du client
+    std::string oldNickname = getNickname(client_fd);
+    
+    // Mise à jour du pseudo dans la liste des clients
+    for (size_t i = 0; i < clients.size(); ++i)
+    {
+        if (clients[i]->getFd() == client_fd)
+        {
+            clients[i]->setNickname(newNickname);
+            std::cout << "[DEBUG] Client FD " << client_fd << " changed nickname from " 
+                      << oldNickname << " to " << newNickname << std::endl;
 
-				std::string nickResponse = ":" + nickname + " NICK " + nickname + "\r\n";
-				broadcastToChannels(client_fd, nickResponse);
-				return;
-			}
-		}
-	}
+            // ✅ Envoi de la réponse NICK au client
+            std::string nickResponse = ":" + oldNickname + " NICK " + newNickname + "\r\n";
+            sendMessage(client_fd, nickResponse);  // 🔥 Envoi du message de confirmation au client
+
+            // Notification aux autres clients dans les canaux où l'utilisateur est
+            broadcastToChannels(client_fd, nickResponse);
+
+            return;
+        }
+    }
+}
 	else if (command == "USER")
 	{
 		std::string username, hostname, servername, realname;
@@ -235,8 +237,7 @@ void Server::handleConnexionCommands(const std::string& command, std::istringstr
 			realname = realname.substr(1);
 		if (username.empty() || realname.empty())
 		{
-			std::string errorMsg = ":server 461 USER :Not enough parameters\r\n"; // 461: ERR_NEEDMOREPARAMS
-			send(client_fd, errorMsg.c_str(), errorMsg.size(), 0);
+			sendError(client_fd, "461", "USER", "Not enough parameters");
 			return;
 		}
 
@@ -264,56 +265,53 @@ void Server::handleConnexionCommands(const std::string& command, std::istringstr
 
 		if (server.empty())
 		{
-			std::string errorMsg = ":server 409 :No origin specified\r\n"; // 409: ERR_NOORIGIN
-			send(client_fd, errorMsg.c_str(), errorMsg.size(), 0);
+			sendError(client_fd, "409", "PING", "No origin specified"); // 409: ERR_NOORIGIN
 			return;
 		}
 
 		std::string pongResponse = ":server PONG " + server + "\r\n";
-		send(client_fd, pongResponse.c_str(), pongResponse.size(), 0);
+		sendMessage(client_fd, pongResponse);
 		std::cout << "[DEBUG] Responded to PING from FD " << client_fd << std::endl;
 	}
-	else if (command == "WHOIS")
+	else if (command == "PRIVMSG")
 	{
-		std::string targetNickname;
-		iss >> targetNickname;
+		std::string target, message;
+		iss >> target;
+		std::getline(iss, message);
 
-		if (targetNickname.empty())
+		if (target.empty() || message.empty())
 		{
-			std::string errorMsg = ":server 431 * :No nickname given\r\n"; // 431: ERR_NONICKNAMEGIVEN
-			send(client_fd, errorMsg.c_str(), errorMsg.size(), 0);
-			std::cout << "[DEBUG] WHOIS received with no nickname specified.\n";
+			sendError(client_fd, "412", "PRIVMSG", "No text to send"); // 412: ERR_NOTEXTTOSEND
 			return;
 		}
-		bool found = false;
-		for (size_t i = 0; i < clients.size(); ++i)
-		{
-			if (clients[i]->getNickname() == targetNickname)
-			{
-				std::string whoisResponse = ":server 311 " + targetNickname + " " +
-											clients[i]->getUsername() + " host :Real name: " +
-											clients[i]->getName() + "\r\n"; // 311: RPL_WHOISUSER
-				send(client_fd, whoisResponse.c_str(), whoisResponse.size(), 0);
-				std::cout << "[DEBUG] WHOIS response sent for nickname: " << targetNickname << std::endl;
 
-				found = true;
-				break;
-			}
-		}
-		if (!found)
+		if (!message.empty() && message[0] == ':')
+			message = message.substr(1);
+
+		std::string senderNickname = getNickname(client_fd);
+		std::string fullMessage = ":" + senderNickname + " PRIVMSG " + target + " :" + message + "\r\n";
+
+		if (target[0] == '#') // Message pour un canal
 		{
-			std::string errorMsg = ":server 401 " + targetNickname + " :No such nick/channel\r\n"; // 401: ERR_NOSUCHNICK
-			send(client_fd, errorMsg.c_str(), errorMsg.size(), 0);
-			std::cout << "[DEBUG] WHOIS failed: no such nickname " << targetNickname << std::endl;
+			Channel* channel = findChannel(target);
+			if (channel)
+				channel->broadcast(fullMessage, client_fd);
+			else
+				sendError(client_fd, "403", "PRIVMSG", "No such channel"); // 403: ERR_NOSUCHCHANNEL
 		}
-	}
-	else
-	{
-		std::cerr << "[DEBUG] Commande non reconnue : " << command << std::endl;
-		std::string errorMsg = ":server 421 " + command + " :Unknown command\r\n"; // 421: ERR_UNKNOWNCOMMAND
-		send(client_fd, errorMsg.c_str(), errorMsg.size(), 0);
+		else // Message pour un utilisateur
+		{
+			int target_fd = getClientFdByNickname(target);
+			if (target_fd != -1)
+				sendMessage(target_fd, fullMessage);
+			else
+				sendError(client_fd, "401", "PRIVMSG", "No such nick"); // 401: ERR_NOSUCHNICK
+		}
+
+		std::cout << "[DEBUG] PRIVMSG from " << senderNickname << " to " << target << ": " << message << std::endl;
 	}
 }
+
 
 void Server::handleOtherCommands(const std::string& command, std::istringstream& iss, int client_fd)
 {
@@ -324,31 +322,29 @@ void Server::handleOtherCommands(const std::string& command, std::istringstream&
 
 		if (subcommand == "LS")
 		{
-			std::string response = ":irc.server CAP * LS :\r\n";
-			send(client_fd, response.c_str(), response.size(), 0);
+			sendMessage(client_fd, ":irc.server CAP * LS :\r\n");
 			std::cout << "[DEBUG] CAP LS handled for client FD " << client_fd << std::endl;
 		}
 		else
 		{
-			std::string response = ":irc.server CAP * ACK :\r\n";
-			send(client_fd, response.c_str(), response.size(), 0);
+			sendMessage(client_fd, ":irc.server CAP * ACK :\r\n");
 			std::cout << "[DEBUG] CAP " << subcommand << " acknowledged for client FD " << client_fd << std::endl;
 		}
 	}
 	else
 	{
-		std::string errorMsg = "ERROR: Unknown command '" + command + "'.\r\n";
-		send(client_fd, errorMsg.c_str(), errorMsg.size(), 0);
+		sendError(client_fd, "421", command, "Unknown command");
 	}
 }
 
+
 std::string Server::cleanMessage(const std::string& message)
 {
-    std::string cleanMsg = message;
-    while (!cleanMsg.empty() &&
-           (cleanMsg[cleanMsg.size() - 1] == '\r' || cleanMsg[cleanMsg.size() - 1] == '\n'))
-    {
-        cleanMsg.erase(cleanMsg.size() - 1); // Supprime le dernier caractère
-    }
-    return cleanMsg;
+	std::string cleanMsg = message;
+	while (!cleanMsg.empty() &&
+		   (cleanMsg[cleanMsg.size() - 1] == '\r' || cleanMsg[cleanMsg.size() - 1] == '\n'))
+	{
+		cleanMsg.erase(cleanMsg.size() - 1); // Supprime le dernier caractère
+	}
+	return cleanMsg;
 }

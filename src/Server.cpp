@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 20:44:56 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/01/29 14:49:50 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/01/30 13:31:15 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -328,4 +328,19 @@ bool Server::notregistered(int client_fd)
             return clients[i]->getNickname().empty() || clients[i]->getUsername().empty();
     }
     return true; // Si le client n'existe pas encore, il est considéré comme non enregistré.
+}
+
+void Server::sendMessage(int client_fd, const std::string& message)
+{
+    send(client_fd, message.c_str(), message.length(), 0);
+}
+
+Channel* Server::findChannel(const std::string& channelName)
+{
+    for (size_t i = 0; i < channels.size(); ++i)
+    {
+        if (channels[i]->getName() == channelName)
+            return channels[i];
+    }
+    return NULL; // Aucun canal trouvé
 }
