@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/12 10:55:54 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/01/30 17:11:16 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/02/03 16:36:37 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -149,6 +149,25 @@ void Server::parseCommand(const std::string& message, int client_fd)
 		handleInvit(params);
 		return;
 	}
+	else if (command == "TOPIC")
+	{
+		std::string channelName, topic;
+		iss >> channelName;
+		std::getline(iss, topic);
+
+		if (!topic.empty() && topic[0] == ':')
+			topic = topic.substr(1);
+
+		CommandParams params;
+		params.commandType = CommandParams::TOPIC;
+		params.client_fd = client_fd;
+		params.channelName = channelName;
+		if (!topic.empty()) params.Arg.push_back(topic);
+
+		handleTopic(params);
+		return;
+	}
+
 	else
 		sendError(client_fd, "421", command, "Unknown command");
 }

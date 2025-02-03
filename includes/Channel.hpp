@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 17:13:04 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/01/30 10:50:40 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/02/03 17:09:20 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -69,6 +69,7 @@ public:
 	int getUserLimit() const;
 	std::string getKey() const;
 	void removeOperator(int fd);
-	void listUsers();
+	std::string listUsers() const;
+	int getUserCount() const;
 
 };
