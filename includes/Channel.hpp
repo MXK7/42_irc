@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 17:13:04 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/02/03 17:09:20 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/02/04 16:24:04 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,11 +30,11 @@ private:
 	std::vector<int> operators;
 	std::vector<std::string> invitedUsers;
 	bool inviteOnly;		// (+i)
-	bool isKey;
-	bool isTopic;
+	bool isKey;				//(+k)
+	bool isTopic;			//(+t)
 	int userLimit;			// (+l)
 	std::string name;
-	std::string topic;
+	std::string topic;		//(+t)
 	std::string key;		// (+k)
 
 public:

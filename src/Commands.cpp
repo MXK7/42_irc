@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/12 10:55:54 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/02/03 16:36:37 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/02/05 15:36:10 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -87,16 +87,31 @@ void Server::parseCommand(const std::string& message, int client_fd)
 
 	if (command == "MODE")
 	{
-		std::string target, mode;
-		iss >> target >> mode;
+		CommandParams params;
+		params.commandType = CommandParams::MODE;
+		params.client_fd = client_fd;
 
-		if (target.empty())
+		// Lire le nom du canal
+		if (!(iss >> params.channelName))
 		{
 			sendError(client_fd, "461", "MODE", "Not enough parameters");
 			return;
 		}
-		std::string response = ":server MODE " + target + " " + mode + "\r\n";
-		sendMessage(client_fd, response);
+
+		// Lire les modes et arguments suivants
+		std::string mode;
+		while (iss >> mode)
+		{
+			params.Arg.push_back(mode);
+		}
+
+		// 🔥 DEBUG : Afficher les arguments extraits
+		std::cout << "[DEBUG] 🛠️ Arguments extraits pour MODE : ";
+		for (size_t i = 0; i < params.Arg.size(); i++)
+			std::cout << "\"" << params.Arg[i] << "\" ";
+		std::cout << std::endl;
+
+		handleMode(params);
 		return;
 	}
 	else if (command == "KICK")
@@ -111,23 +126,26 @@ void Server::parseCommand(const std::string& message, int client_fd)
 	}
 	else if (command == "JOIN")
 	{
-		std::string channelName;
-		iss >> channelName;
-
-		if (channelName.empty() || channelName[0] != '#')
-		{
-			sendError(client_fd, "476", "JOIN", "Invalid channel name");
-			return;
-		}
-
 		CommandParams params;
 		params.commandType = CommandParams::JOIN;
 		params.client_fd = client_fd;
-		params.channelName = channelName;
+
+		iss >> params.channelName; // Récupère le nom du canal
+
+		std::string possiblePassword;
+		if (iss >> possiblePassword) // Récupère le mot de passe s'il existe
+		{
+			params.password = possiblePassword;
+			std::cout << "[DEBUG] Mot de passe extrait pour JOIN : " << params.password << std::endl;
+		}
+		else
+		{
+			std::cout << "[DEBUG] Aucun mot de passe extrait pour JOIN." << std::endl;
+		}
 
 		handleJoin(params);
-		return;
 	}
+
 	else if (command == "INVITE")
 	{
 		std::string nickname, channelName;
@@ -167,7 +185,38 @@ void Server::parseCommand(const std::string& message, int client_fd)
 		handleTopic(params);
 		return;
 	}
+	else if(command == "PART")
+	{
+		CommandParams params;
+		params.commandType = CommandParams::PART;
+		params.client_fd = client_fd;
 
+		// Récupérer le nom du canal
+		if (!(iss >> params.channelName))
+		{
+			sendError(client_fd, "461", "PART", "Not enough parameters");
+			return;
+		}
+
+		// Lire un message optionnel
+		std::string message;
+		if (std::getline(iss, message) && !message.empty() && message[0] == ':') 
+		{
+			// Le message commence par ":", donc on doit l'utiliser en entier
+			params.message = message.substr(1);  // Supprimer le ":" initial
+		}
+
+		// Affichage des paramètres extraits pour debug
+		std::cout << "[DEBUG] 🛠️ PARAMS pour PART : Canal = " << params.channelName;
+		if (!params.message.empty()) 
+		{
+			std::cout << ", Message = " << params.message;
+		}
+		std::cout << std::endl;
+
+		handlePart(params);  // Appel de la fonction pour gérer le départ du canal
+		return;
+	}
 	else
 		sendError(client_fd, "421", command, "Unknown command");
 }
@@ -266,12 +315,12 @@ else if (command == "NICK")
 			{
 				clients[i]->setName(realname);
 				clients[i]->setUsername(username);
-				std::cout << "[DEBUG] Client FD " << client_fd << " set username to " << username << std::endl;
+				// std::cout << "[DEBUG] Client FD " << client_fd << " set username to " << username << std::endl;
 
 				if (!clients[i]->getNickname().empty())
 				{
 					sendWelcomeMessage(client_fd);
-					std::cout << "[DEBUG] Welcome message sent to client FD " << client_fd << std::endl;
+					// std::cout << "[DEBUG] Welcome message sent to client FD " << client_fd << std::endl;
 				}
 				return;
 			}
@@ -290,7 +339,7 @@ else if (command == "NICK")
 
 		std::string pongResponse = ":server PONG " + server + "\r\n";
 		sendMessage(client_fd, pongResponse);
-		std::cout << "[DEBUG] Responded to PING from FD " << client_fd << std::endl;
+		// std::cout << "[DEBUG] Responded to PING from FD " << client_fd << std::endl;
 	}
 	else if (command == "PRIVMSG")
 	{
@@ -310,15 +359,25 @@ else if (command == "NICK")
 		std::string senderNickname = getNickname(client_fd);
 		std::string fullMessage = ":" + senderNickname + " PRIVMSG " + target + " :" + message + "\r\n";
 
-		if (target[0] == '#') // Message pour un canal
+		if (target[0] == '#') // 🔥 Vérification stricte pour les messages de canal
 		{
 			Channel* channel = findChannel(target);
-			if (channel)
-				channel->broadcast(fullMessage, client_fd);
-			else
+			
+			if (!channel)  // 🔥 Le canal n'existe plus
+			{
 				sendError(client_fd, "403", "PRIVMSG", "No such channel"); // 403: ERR_NOSUCHCHANNEL
+				return;
+			}
+
+			if (!channel->isUserInChannel(senderNickname)) // 🔥 Vérification si l'utilisateur est encore dans le canal
+			{
+				sendError(client_fd, "404", "PRIVMSG", "Cannot send to channel"); // 404: ERR_CANNOTSENDTOCHAN
+				return;
+			}
+
+			channel->broadcast(fullMessage, client_fd); // ✅ Si tout est bon, envoyer le message
 		}
-		else // Message pour un utilisateur
+		else // 🔥 Gestion des messages privés entre utilisateurs
 		{
 			int target_fd = getClientFdByNickname(target);
 			if (target_fd != -1)
@@ -331,7 +390,6 @@ else if (command == "NICK")
 	}
 }
 
-
 void Server::handleOtherCommands(const std::string& command, std::istringstream& iss, int client_fd)
 {
 	if (command == "CAP")
@@ -342,12 +400,12 @@ void Server::handleOtherCommands(const std::string& command, std::istringstream&
 		if (subcommand == "LS")
 		{
 			sendMessage(client_fd, ":irc.server CAP * LS :\r\n");
-			std::cout << "[DEBUG] CAP LS handled for client FD " << client_fd << std::endl;
+			// std::cout << "[DEBUG] CAP LS handled for client FD " << client_fd << std::endl;
 		}
 		else
 		{
 			sendMessage(client_fd, ":irc.server CAP * ACK :\r\n");
-			std::cout << "[DEBUG] CAP " << subcommand << " acknowledged for client FD " << client_fd << std::endl;
+			// std::cout << "[DEBUG] CAP " << subcommand << " acknowledged for client FD " << client_fd << std::endl;
 		}
 	}
 	else

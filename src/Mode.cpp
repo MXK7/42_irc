@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/28 10:25:46 by thlefebv          #+#    #+#             */
-/*   Updated: 2025/01/30 16:25:04 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/02/05 10:12:06 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,6 +25,11 @@ void Server::sendModeResponse(int client_fd, const std::string& nickname, const 
 void Server::handleMode(const CommandParams& params)
 {
     Channel* channel = getChannelByName(params.channelName);
+    if (!channel)
+    {
+        sendError(params.client_fd, "403", "MODE", "No such channel");
+        return;
+    }
 
     std::vector<std::string>::const_iterator argIt = params.Arg.begin();
     for (; argIt != params.Arg.end(); ++argIt)
@@ -41,25 +46,30 @@ void Server::handleMode(const CommandParams& params)
             channel->setInviteOnly(false);
             sendModeResponse(params.client_fd, getNickname(params.client_fd), params.channelName, "-i", "");
         }
-        else if (mode == "+k")
+        else if (mode == "+k")  
         {
             if (++argIt != params.Arg.end())
             {
-                const std::string& key = *argIt;
+                std::string key = *argIt;
                 channel->setKey(key);
+
+                if (channel->hasKey())
+                    std::cout << "[DEBUG] ✅ Mode +k activé sur " << params.channelName << " avec clé : " << key << std::endl;
+                else
+                    std::cout << "[DEBUG] ❌ ERREUR : setKey() n'a pas activé hasKey() !" << std::endl;
+
                 sendModeResponse(params.client_fd, getNickname(params.client_fd), params.channelName, "+k", key);
             }
             else
             {
-                std::string errorMsg = ":" + getNickname(params.client_fd) + 
-                                       " 461 " + params.channelName + " +k :Key is missing\r\n";
-                send(params.client_fd, errorMsg.c_str(), errorMsg.size(), 0);
+                sendError(params.client_fd, "461", "MODE", "Not enough parameters for +k");
                 return;
             }
         }
-        else if (mode == "-k")
+        else if (mode == "-k")  
         {
             channel->clearKey();
+            std::cout << "[DEBUG] Mode -k : suppression du mot de passe sur " << params.channelName << std::endl;
             sendModeResponse(params.client_fd, getNickname(params.client_fd), params.channelName, "-k", "");
         }
         else if (mode == "+l")
@@ -69,14 +79,12 @@ void Server::handleMode(const CommandParams& params)
                 int limit = std::atoi(argIt->c_str());
                 channel->setUserLimit(limit);
                 std::ostringstream oss;
-				oss << limit;
-				sendModeResponse(params.client_fd, getNickname(params.client_fd), params.channelName, "+l", oss.str());
+                oss << limit;
+                sendModeResponse(params.client_fd, getNickname(params.client_fd), params.channelName, "+l", oss.str());
             }
             else
             {
-                std::string errorMsg = ":" + getNickname(params.client_fd) +
-                                       " 461 " + params.channelName + " +l :Limit is missing\r\n";
-                send(params.client_fd, errorMsg.c_str(), errorMsg.size(), 0);
+                sendError(params.client_fd, "461", "MODE", "Limit is missing");
                 return;
             }
         }
@@ -85,66 +93,13 @@ void Server::handleMode(const CommandParams& params)
             channel->clearUserLimit();
             sendModeResponse(params.client_fd, getNickname(params.client_fd), params.channelName, "-l", "");
         }
-        else if (mode == "+o")
-        {
-            if (++argIt != params.Arg.end())
-            {
-                const std::string& nickname = *argIt;
-                Client* targetClient = getClientByNickname(nickname);
-                if (targetClient) 
-                {
-                    channel->addOperator(targetClient->getFd());
-                    sendModeResponse(params.client_fd, getNickname(params.client_fd), params.channelName, "+o", nickname);
-                }
-                else
-                {
-                    std::string errorMsg = ":" + getNickname(params.client_fd) +
-                                           " 401 " + nickname + " :No such nick/channel\r\n";
-                    send(params.client_fd, errorMsg.c_str(), errorMsg.size(), 0);
-                }
-            }
-            else
-            {
-                std::string errorMsg = ":" + getNickname(params.client_fd) +
-                                       " 461 " + params.channelName + " +o :Nickname is missing\r\n";
-                send(params.client_fd, errorMsg.c_str(), errorMsg.size(), 0);
-                return;
-            }
-        }
-        else if (mode == "-o")
-        {
-            if (++argIt != params.Arg.end())
-            {
-                const std::string& nickname = *argIt;
-                Client* targetClient = getClientByNickname(nickname);
-                if (targetClient)
-                {
-                    channel->removeOperator(targetClient->getFd());
-                    sendModeResponse(params.client_fd, getNickname(params.client_fd), params.channelName, "-o", nickname);
-                }
-                else
-                {
-                    std::string errorMsg = ":" + getNickname(params.client_fd) +
-                                           " 401 " + nickname + " :No such nick/channel\r\n";
-                    send(params.client_fd, errorMsg.c_str(), errorMsg.size(), 0);
-                }
-            }
-            else
-            {
-                std::string errorMsg = ":" + getNickname(params.client_fd) +
-                                       " 461 " + params.channelName + " -o :Nickname is missing\r\n";
-                send(params.client_fd, errorMsg.c_str(), errorMsg.size(), 0);
-                return;
-            }
-        }
         else
         {
-            std::string errorMsg = ":" + getNickname(params.client_fd) +
-                                   " 472 " + mode + " :is unknown mode char to me\r\n";
-            send(params.client_fd, errorMsg.c_str(), errorMsg.size(), 0);
+            sendError(params.client_fd, "472", mode, "Unknown mode character");
         }
     }
 }
+
 
 void Server::handleModeCommand(std::istringstream& iss, int client_fd)
 {

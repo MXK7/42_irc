@@ -16,6 +16,7 @@ SRC_FILES     = main \
 				Mode\
 				Invite\
 				Topic\
+				Part\
 
 
 SRC           = $(addprefix $(SRC_DIR), $(addsuffix .cpp, $(SRC_FILES)))

@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 20:16:55 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/02/03 16:58:48 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/02/05 13:52:16 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -62,14 +62,16 @@ private:
 
 	struct CommandParams
 	{
-		enum CommandType { JOIN, INVIT, KICK, MODE, TOPIC} commandType;
+		enum CommandType { JOIN, INVIT, KICK, MODE, TOPIC, PART} commandType;
 		int client_fd;
 		int operator_fd;
 		std::string channelName;
 		std::string nickname;
 		std::vector<std::string> Arg;
 		std::string topicMessage;
+		std::string password;
 		std::vector<std::string> additionalParams;
+		std::string message;
 	};
 
 
@@ -135,5 +137,6 @@ public:
 
 	void handleTopic(const CommandParams& params);
 
+	void handlePart(const CommandParams& params);
 
 };

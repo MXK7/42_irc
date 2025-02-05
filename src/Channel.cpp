@@ -53,10 +53,13 @@ void Channel::addInvitedUser(const std::string &nickname){
 	invitedUsers.push_back(nickname);
 }
 
-bool Channel::isUserInvited(const std::string &nickname){
-	return std::find(invitedUsers.begin(), invitedUsers.end(),
-			nickname) != invitedUsers.end();
+bool Channel::isUserInvited(const std::string& nickname)
+{
+    bool invited = (std::find(invitedUsers.begin(), invitedUsers.end(), nickname) != invitedUsers.end());
+    std::cout << "[DEBUG] Checking if " << nickname << " is invited: " << (invited ? "YES" : "NO") << std::endl;
+    return invited;
 }
+
 
 bool Channel::isUserInChannel(const std::string &nickname) {
 	return (usersMap.find(nickname) != usersMap.end());
@@ -129,14 +132,35 @@ void Channel::removeUser(int fd) {
 	}
 }
 
-void Channel::setKey(const std::string &newKey){
-	key = newKey;
-	isKey = true;
+/*-------------------------------------------------------------------------------*/
+void Channel::setKey(const std::string &newKey)
+{
+    key = newKey;
+    isKey = true;  // 🔥 S'assurer que le flag isKey est activé !
+    std::cout << "[DEBUG] 🔑 Clé définie pour " << name << " : " << key << std::endl;
 }
 
-void Channel::clearKey() {
-	key = "";
-	isKey = false;
+void Channel::clearKey()
+{
+    key.clear();
+    isKey = false;
+    std::cout << "[DEBUG] 🔓 Clé supprimée pour " << name << std::endl;
+}
+
+bool Channel::hasKey() const
+{
+    return isKey;
+}
+
+std::string Channel::getKey() const
+{
+	return key;
+}
+/*-------------------------------------------------------------------------*/
+
+
+int Channel::getUserLimit() const {
+	return userLimit;
 }
 
 void Channel::setUserLimit(int limit) {
@@ -146,19 +170,6 @@ void Channel::setUserLimit(int limit) {
 void Channel::clearUserLimit() {
 	userLimit = -1;
 }
-
-bool Channel::hasKey() const {
-	return isKey;
-}
-
-int Channel::getUserLimit() const {
-	return userLimit;
-}
-
-std::string Channel::getKey() const {
-	return key;
-}
-
 
 void Channel::removeOperator(int fd)
 {
