@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/28 10:33:51 by thlefebv          #+#    #+#             */
-/*   Updated: 2025/02/05 15:54:27 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/02/11 14:16:46 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -70,19 +70,11 @@ void Server::handleJoin(const CommandParams& params)
             sendError(params.client_fd, "475", "JOIN", "Cannot join channel (+k) - Incorrect password");
             std::cout << "[DEBUG] ❌ Refus de connexion : mot de passe incorrect ou absent." << std::endl;
 
-            // 🔥 Envoyer un PART pour signaler à Irssi qu'il ne peut pas rester
-            CommandParams partParams;
-            partParams.client_fd = params.client_fd;
-            partParams.channelName = params.channelName;
-            partParams.Arg.push_back("Wrong password");
-            handlePart(partParams);
-
             // 🔥 Envoyer un KICK pour forcer Irssi à quitter complètement le canal
             std::ostringstream kickMessage;
             kickMessage << ":irc.server KICK " << params.channelName << " " << getNickname(params.client_fd)
                         << " :Authentication failed\r\n";
             sendMessage(params.client_fd, kickMessage.str());
-
             return;
         }
     }
@@ -91,10 +83,14 @@ void Server::handleJoin(const CommandParams& params)
         std::cout << "[DEBUG] ⚠️ Problème : hasKey() retourne FALSE alors que le mode +k devrait être actif !" << std::endl;
     }
 
-    // Vérifier si le canal est en mode invite-only et si l'utilisateur est invité
-    if (channel->isInviteOnly() && !channel->isUserInvited(nickname))
+    if (channel->isInviteOnly() && !channel->isUserInvited(nickname))// Vérifier si le canal est en mode invite-only et si l'utilisateur est invité
     {
         sendError(params.client_fd, "473", "JOIN", "Cannot join channel (Invite only)");
+        std::cout << "[DEBUG] ❌ Refus de connexion : Not invited" << std::endl;
+
+        std::ostringstream kickMessage;// 🔥 Envoyer un KICK pour forcer Irssi à quitter complètement le canal
+        kickMessage << ":irc.server KICK " << params.channelName << " " << getNickname(params.client_fd) << " :Authentication failed\r\n";
+        sendMessage(params.client_fd, kickMessage.str());
         return;
     }
 
@@ -121,14 +117,11 @@ void Server::handleJoin(const CommandParams& params)
 
         // 🔥 Mise à jour du nombre total d'utilisateurs dans le canal
         std::ostringstream totalUsersMessage;
-        totalUsersMessage << ":irc.server 322 " << nickname << " " << params.channelName
-                          << " " << channel->getUserCount() << " :Users in channel\r\n";
+        totalUsersMessage << ":irc.server 322 " << nickname << " " << params.channelName << " " << channel->getUserCount() << " :Users in channel\r\n";
         channel->broadcast(totalUsersMessage.str());
     }
     else
-    {
         sendError(params.client_fd, "443", "JOIN", "You're already in the channel");
-    }
 }
 
 

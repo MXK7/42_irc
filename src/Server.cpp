@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 20:44:56 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/01/30 13:31:15 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/02/11 13:17:01 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -259,21 +259,21 @@ int Server::HandlerConnexion() {
 
 void Server::addClient(int client_fd, const std::string &name, const std::string &nickname)
 {
-    for (size_t i = 0; i < clients.size(); ++i)
-    {
-        if (clients[i]->getFd() == client_fd) // Vérifier si le FD existe déjà
-        {
-            std::cerr << "[ERROR] Trying to add an already existing FD: " << client_fd << std::endl;
-            return;
-        }
-    }
+	for (size_t i = 0; i < clients.size(); ++i)
+	{
+		if (clients[i]->getFd() == client_fd) // Vérifier si le FD existe déjà
+		{
+			std::cerr << "[ERROR] Trying to add an already existing FD: " << client_fd << std::endl;
+			return;
+		}
+	}
 
-    Client* newClient = new Client(client_fd, name, nickname);
-    clients.push_back(newClient);
+	Client* newClient = new Client(client_fd, name, nickname);
+	clients.push_back(newClient);
 
-    std::cout << "Client added : FD = " << client_fd
-              << ", Name = " << name
-              << ", Nickname = " << nickname << std::endl;
+	std::cout << "Client added : FD = " << client_fd
+			  << ", Name = " << name
+			  << ", Nickname = " << nickname << std::endl;
 }
 
 
@@ -306,7 +306,19 @@ void Server::sendWelcomeMessage(int client_fd)
 			   << ":irc.server 003 " << getNickname(client_fd) << " :This server was created today\r\n";
 
 	send(client_fd, welcomeMsg.str().c_str(), welcomeMsg.str().size(), 0);
-	std::cout << "[DEBUG] Welcome message sent to client FD: " << client_fd << std::endl;
+	std::ostringstream whoReply;
+	whoReply << ":irc.server 352 " << getNickname(client_fd) 
+			<< " #chat * " << getNickname(client_fd) 
+			<< " irc.server " << getNickname(client_fd) 
+			<< " H :0 " << getNickname(client_fd) << "\r\n";
+	sendMessage(client_fd, whoReply.str());
+
+	// 🔥 Message de fin de WHO
+	std::ostringstream endOfWho;
+	endOfWho << ":irc.server 315 " << getNickname(client_fd) 
+			<< " #chat :End of /WHO list\r\n";
+	sendMessage(client_fd, endOfWho.str());
+
 }
 
 void Server::sendError(int client_fd, const std::string& errorCode, const std::string& command, const std::string& message)
@@ -322,25 +334,25 @@ void Server::sendError(int client_fd, const std::string& errorCode, const std::s
 
 bool Server::notregistered(int client_fd)
 {
-    for (size_t i = 0; i < clients.size(); ++i)
-    {
-        if (clients[i]->getFd() == client_fd)
-            return clients[i]->getNickname().empty() || clients[i]->getUsername().empty();
-    }
-    return true; // Si le client n'existe pas encore, il est considéré comme non enregistré.
+	for (size_t i = 0; i < clients.size(); ++i)
+	{
+		if (clients[i]->getFd() == client_fd)
+			return clients[i]->getNickname().empty() || clients[i]->getUsername().empty();
+	}
+	return true; // Si le client n'existe pas encore, il est considéré comme non enregistré.
 }
 
 void Server::sendMessage(int client_fd, const std::string& message)
 {
-    send(client_fd, message.c_str(), message.length(), 0);
+	send(client_fd, message.c_str(), message.length(), 0);
 }
 
 Channel* Server::findChannel(const std::string& channelName)
 {
-    for (size_t i = 0; i < channels.size(); ++i)
-    {
-        if (channels[i]->getName() == channelName)
-            return channels[i];
-    }
-    return NULL; // Aucun canal trouvé
+	for (size_t i = 0; i < channels.size(); ++i)
+	{
+		if (channels[i]->getName() == channelName)
+			return channels[i];
+	}
+	return NULL; // Aucun canal trouvé
 }

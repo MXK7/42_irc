@@ -43,11 +43,21 @@ void Channel::addUser(int fd,  const std::string &nickname){
 	}
 }
 
-
+/*-----------------------------------------------------------------------------------------*/
 void Channel::addOperator(int fd) {
 	operators.push_back(fd);
 }
 
+void Channel::removeOperator(int fd)
+{
+    operators.erase(std::remove(operators.begin(), operators.end(), fd), operators.end());
+}
+
+bool Channel::isOperator(int fd) {
+	return std::find(operators.begin(), operators.end(), fd) != operators.end();
+}
+
+/*----------------------------------------------------------------------------------*/
 
 void Channel::addInvitedUser(const std::string &nickname){
 	invitedUsers.push_back(nickname);
@@ -65,9 +75,6 @@ bool Channel::isUserInChannel(const std::string &nickname) {
 	return (usersMap.find(nickname) != usersMap.end());
 }
 
-bool Channel::isOperator(int fd) {
-	return std::find(operators.begin(), operators.end(), fd) != operators.end();
-}
 
 bool Channel::isTopicLock() const {
 		return isTopic;
@@ -171,7 +178,3 @@ void Channel::clearUserLimit() {
 	userLimit = -1;
 }
 
-void Channel::removeOperator(int fd)
-{
-    operators.erase(std::remove(operators.begin(), operators.end(), fd), operators.end());
-}

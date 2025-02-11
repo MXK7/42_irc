@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/12 10:55:54 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/02/05 15:36:10 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/02/10 11:14:03 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -49,13 +49,15 @@ Channel* Server::getChannelByName(const std::string &name) {
 
 Client* Server::getClientByNickname(const std::string& nickname)
 {
-	for (size_t i = 0; i < clients.size(); ++i)
-	{
-		if (clients[i]->getNickname() == nickname)
-			return clients[i];
-	}
-	return NULL; // Aucun client trouvé
+    for (size_t i = 0; i < clients.size(); ++i)
+    {
+        std::cout << "[DEBUG] 🔍 Comparaison : " << clients[i]->getNickname() << " == " << nickname << std::endl;
+        if (clients[i]->getNickname() == nickname)
+            return clients[i];
+    }
+    return NULL;
 }
+
 
 void Server::parseCommand(const std::string& message, int client_fd)
 {
