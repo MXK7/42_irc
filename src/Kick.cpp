@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/28 15:21:03 by thlefebv          #+#    #+#             */
-/*   Updated: 2025/02/11 13:58:03 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/02/11 14:25:19 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -74,5 +74,4 @@ void Server::handleKick(const CommandParams &params)
                     << " :You don't have permission to kick users from " << params.channelName << "\r\n";
         sendMessage(params.operator_fd, noticeMessage.str());
     }
-
 }

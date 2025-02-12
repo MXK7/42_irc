@@ -76,13 +76,6 @@ bool Channel::isUserInChannel(const std::string &nickname) {
 }
 
 
-bool Channel::isTopicLock() const {
-		return isTopic;
-	}
-
-void Channel::setTopicLock(bool status){
-	isTopic = status;
-}
 bool Channel::isInviteOnly() const {
 	return (inviteOnly);
 }
@@ -91,9 +84,6 @@ void Channel::setInviteOnly(bool status){
 	inviteOnly = status;
 }
 
-std::string Channel::getTopic() {
-	return topic;
-}
 
 int Channel::getUserFdByNickname(const std::string &nickname)
 {
@@ -104,9 +94,56 @@ int Channel::getUserFdByNickname(const std::string &nickname)
 	return -1;
 }
 
-void Channel::setTopic(const std::string &newTopic) {
-	topic = newTopic;
+
+/*-------------------------------------------------------------- */
+
+std::string Channel::getTopic() {
+	return topic;
 }
+
+void Channel::setTopic(const std::string &newTopic, const std::string &setter)
+{
+    topic = newTopic;
+    topicSetter = setter;
+    topicTimestamp = time(NULL);  // ⏳ Stocker l'horodatage actuel
+}
+
+
+bool Channel::isTopicLock() const {
+		return isTopic;
+	}
+
+void Channel::setTopicLock(bool status){
+	isTopic = status;
+}
+
+std::string Channel::getTopicSetter() const
+{
+	return topicSetter;
+}
+
+time_t Channel::getTopicTimestamp() const
+{
+	return topicTimestamp;
+}
+
+// Définir l'auteur et l'horodatage du topic
+void Channel::setTopicMetadata(const std::string& setter)
+{
+    topicSetter = setter;
+    topicTimestamp = time(NULL);
+}
+
+// Récupérer l'auteur et l'horodatage du topic
+std::pair<std::string, time_t> Channel::getTopicMetadata() const
+{
+    return std::make_pair(topicSetter, topicTimestamp);
+}
+
+
+/*----------------------------------------------------------------*/
+
+
 
 void Channel::broadcast(const std::string &message, int excludeFd) 
 {
@@ -140,6 +177,7 @@ void Channel::removeUser(int fd) {
 }
 
 /*-------------------------------------------------------------------------------*/
+
 void Channel::setKey(const std::string &newKey)
 {
     key = newKey;
@@ -178,3 +216,8 @@ void Channel::clearUserLimit() {
 	userLimit = -1;
 }
 
+bool Channel::hasUserLimit() const
+{
+    return userLimit > 0;
+}
+/*--------------------------------------------------------------------- */

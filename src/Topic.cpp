@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/02/03 10:55:37 by thlefebv          #+#    #+#             */
-/*   Updated: 2025/02/03 16:43:40 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/02/12 11:28:03 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -23,18 +23,30 @@ void Server::handleTopic(const CommandParams& params)
         return;
     }
 
-    // 🔥 Vérification si l'utilisateur veut juste voir le topic
+    // ✅ 🔥 Vérifier si l'utilisateur veut juste voir le topic
     if (params.Arg.empty())
     {
         std::string currentTopic = channel->getTopic();
         if (currentTopic.empty())
+        {
             sendMessage(params.client_fd, ":irc.server 331 " + params.channelName + " :No topic is set\r\n");
+        }
         else
-            sendMessage(params.client_fd, ":irc.server 332 " + params.channelName + " :" + currentTopic + "\r\n");
+        {
+            sendMessage(params.client_fd, ":irc.server 332 " + getNickname(params.client_fd) + " " 
+                        + params.channelName + " :" + currentTopic + "\r\n");
+
+            // 🔥 Ajouter aussi l'info sur **QUI** a changé le topic et quand (RFC 1459)
+            std::ostringstream topicWhoTime;
+            topicWhoTime << ":irc.server 333 " << getNickname(params.client_fd) << " " 
+                         << params.channelName << " " << channel->getTopicSetter() << " " 
+                         << channel->getTopicTimestamp() << "\r\n";
+            sendMessage(params.client_fd, topicWhoTime.str());
+        }
         return;
     }
 
-    // 🔥 Vérification si le mode +t est activé
+    // ❌ Vérifier si le mode +t est activé et que l'utilisateur n'est pas opérateur
     if (channel->isTopicLock() && !channel->isOperator(params.client_fd))
     {
         sendError(params.client_fd, "482", "TOPIC", "You're not a channel operator");
@@ -42,16 +54,20 @@ void Server::handleTopic(const CommandParams& params)
     }
 
     // ✅ Modifier le topic si l'utilisateur est autorisé
-    channel->setTopic(params.Arg[0]);
+    std::string newTopic = params.Arg[0];
+    channel->setTopic(newTopic, getNickname(params.client_fd));
+    channel->setTopic(params.Arg[0], getNickname(params.client_fd));
+    channel->setTopicMetadata(getNickname(params.client_fd));                 // ⏳ Stocke l'horodatage
 
     // 🔥 Diffuser le changement de topic à tous les utilisateurs du canal
     std::ostringstream topicMsg;
-    topicMsg << ":" << getNickname(params.client_fd) << " TOPIC " << params.channelName << " :" << params.Arg[0] << "\r\n";
+    topicMsg << ":" << getNickname(params.client_fd) << " TOPIC " << params.channelName << " :" << newTopic << "\r\n";
     channel->broadcast(topicMsg.str());
 
     std::cout << "[DEBUG] " << getNickname(params.client_fd) << " changed the topic of " 
-              << params.channelName << " to: " << params.Arg[0] << std::endl;
+              << params.channelName << " to: " << newTopic << std::endl;
 }
+
 
 
 

@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 20:16:55 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/02/05 13:52:16 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/02/12 09:57:44 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -28,6 +28,7 @@
 #include <iostream>
 #include <cstring>
 #include <cerrno>
+#include <ctime>
 #include <cstdlib>  // atoi
 #include <sys/socket.h> //-> for socket()
 #include <sys/types.h> //-> for socket()

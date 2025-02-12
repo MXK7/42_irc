@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 17:13:04 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/02/04 16:24:04 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/02/12 10:11:55 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -34,7 +34,9 @@ private:
 	bool isTopic;			//(+t)
 	int userLimit;			// (+l)
 	std::string name;
-	std::string topic;		//(+t)
+	std::string topic;      //(+t)
+	std::string topicSetter;  // 🔥 Stocke le pseudo du dernier utilisateur ayant changé le topic
+    time_t topicTimestamp;	
 	std::string key;		// (+k)
 
 public:
@@ -51,19 +53,26 @@ public:
 	bool isOperator(int fd);
 	bool isTopicLock() const;
 	void setTopicLock(bool status);
+	void setTopic(const std::string &newTopic, const std::string &setter);
+	std::string getTopicSetter() const;
+    time_t getTopicTimestamp() const;
+	void setTopicMetadata(const std::string& setter);
+	std::pair<std::string, time_t> getTopicMetadata() const;
+
+
 	bool isUserInvited(const std::string &nickname);
 	bool isInviteOnly() const;
 	void setInviteOnly(bool status);
 	std::string getTopic();
 	std::string getName() const;
 	int getUserFdByNickname(const std::string &nickname);
-	void setTopic(const std::string &newTopic);
 	void broadcast(const std::string &message, int excludeFd = -1);
 	void removeUser(int fd);
 
 	void setKey(const std::string &key);
 	void clearKey();
 	void setUserLimit(int limit);
+	bool hasUserLimit() const;
 	void clearUserLimit();
 	bool hasKey() const;
 	int getUserLimit() const;

@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/28 10:33:51 by thlefebv          #+#    #+#             */
-/*   Updated: 2025/02/11 14:16:46 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/02/12 09:20:46 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -93,7 +93,16 @@ void Server::handleJoin(const CommandParams& params)
         sendMessage(params.client_fd, kickMessage.str());
         return;
     }
-
+    if (channel->hasUserLimit() && channel->getUserCount() >= channel->getUserLimit())
+    {
+        sendError(params.client_fd, "471", "JOIN", "Cannot join channel (+l) - User limit reached");
+        std::cout << "[DEBUG] ❌ Refus de connexion : limite d'utilisateurs atteinte (" 
+                << channel->getUserLimit() << ")" << std::endl;
+        std::ostringstream kickMessage;// 🔥 Envoyer un KICK pour forcer Irssi à quitter complètement le canal
+        kickMessage << ":irc.server KICK " << params.channelName << " " << getNickname(params.client_fd) << " :Authentication failed\r\n";
+        sendMessage(params.client_fd, kickMessage.str());
+        return;
+    }
     // Ajouter l'utilisateur s'il n'est pas déjà dans le canal
     if (!channel->isUserInChannel(nickname))
     {
@@ -123,8 +132,6 @@ void Server::handleJoin(const CommandParams& params)
     else
         sendError(params.client_fd, "443", "JOIN", "You're already in the channel");
 }
-
-
 
 
 std::string Channel::listUsers() const

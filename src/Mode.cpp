@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/28 10:25:46 by thlefebv          #+#    #+#             */
-/*   Updated: 2025/02/10 15:01:41 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/02/12 09:46:13 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -75,24 +75,34 @@ void Server::handleMode(const CommandParams& params)
 		}
 		else if (mode == "+l")
 		{
-			if (++argIt != params.Arg.end())
+			if (++argIt != params.Arg.end())  // 🔥 Vérifie s'il y a un argument
 			{
 				int limit = std::atoi(argIt->c_str());
-				channel->setUserLimit(limit);
-				std::ostringstream oss;
-				oss << limit;
-				sendModeResponse(params.client_fd, getNickname(params.client_fd), params.channelName, "+l", oss.str());
+				if (limit > 0)
+				{
+					channel->setUserLimit(limit);
+					std::ostringstream modeMessage;
+					modeMessage << ":irc.server MODE " << params.channelName << " +l " << limit << "\r\n";
+					channel->broadcast(modeMessage.str());  // 🔥 Informe tout le canal
+					std::cout << "[DEBUG] ✅ Limite d'utilisateurs de " << params.channelName << " fixée à " << limit << std::endl;
+				}
+				else
+				{
+					sendError(params.client_fd, "461", "MODE", "Invalid limit");
+				}
 			}
 			else
 			{
-				sendError(params.client_fd, "461", "MODE", "Limit is missing");
-				return;
+				sendError(params.client_fd, "461", "MODE", "Limit required for +l");
 			}
 		}
 		else if (mode == "-l")
 		{
 			channel->clearUserLimit();
-			sendModeResponse(params.client_fd, getNickname(params.client_fd), params.channelName, "-l", "");
+			std::ostringstream modeMessage;
+			modeMessage << ":irc.server MODE " << params.channelName << " -l\r\n";
+			channel->broadcast(modeMessage.str());
+			std::cout << "[DEBUG] 🔓 Limite d'utilisateurs supprimée pour " << params.channelName << std::endl;
 		}
 		else if (mode == "+o")  
 		{
@@ -197,6 +207,22 @@ void Server::handleMode(const CommandParams& params)
 			std::cout << "[DEBUG] 🔥 Message envoyé à tous : " << modeMessage.str();
 			channel->broadcast(modeMessage.str());
 			}
+		else if (mode == "+t")
+		{
+			channel->setTopicLock(true);
+			std::ostringstream modeMessage;
+			modeMessage << ":irc.server MODE " << params.channelName << " +t\r\n";
+			channel->broadcast(modeMessage.str());
+			std::cout << "[DEBUG] ✅ Seuls les opérateurs peuvent maintenant modifier le TOPIC de " << params.channelName << std::endl;
+		}
+		else if (mode == "-t")
+		{
+			channel->setTopicLock(false);
+			std::ostringstream modeMessage;
+			modeMessage << ":irc.server MODE " << params.channelName << " -t\r\n";
+			channel->broadcast(modeMessage.str());
+			std::cout << "[DEBUG] 🔓 Tout le monde peut maintenant modifier le TOPIC de " << params.channelName << std::endl;
+		}
 	}
 }
 
