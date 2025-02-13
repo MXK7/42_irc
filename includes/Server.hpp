@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 20:16:55 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/02/12 09:57:44 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/02/13 18:31:21 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -139,5 +139,7 @@ public:
 	void handleTopic(const CommandParams& params);
 
 	void handlePart(const CommandParams& params);
+	void removeChannel(const std::string &channelName);
+	void sendMessageToChannel(const std::string& channelName, const std::string& message);
 
 };

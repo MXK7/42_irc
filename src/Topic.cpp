@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/02/03 10:55:37 by thlefebv          #+#    #+#             */
-/*   Updated: 2025/02/12 11:28:03 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/02/13 15:03:41 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,6 +16,7 @@
 
 void Server::handleTopic(const CommandParams& params)
 {
+    std::string nickname = getNickname(params.client_fd);
     Channel* channel = getChannelByName(params.channelName);
     if (!channel)
     {
@@ -54,6 +55,9 @@ void Server::handleTopic(const CommandParams& params)
     }
 
     // ✅ Modifier le topic si l'utilisateur est autorisé
+    if(channel->isUserInChannel(nickname))
+    {
+
     std::string newTopic = params.Arg[0];
     channel->setTopic(newTopic, getNickname(params.client_fd));
     channel->setTopic(params.Arg[0], getNickname(params.client_fd));
@@ -66,6 +70,7 @@ void Server::handleTopic(const CommandParams& params)
 
     std::cout << "[DEBUG] " << getNickname(params.client_fd) << " changed the topic of " 
               << params.channelName << " to: " << newTopic << std::endl;
+    }
 }
 
 

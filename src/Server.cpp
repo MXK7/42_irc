@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 20:44:56 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/02/11 13:17:01 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/02/13 18:06:14 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -206,7 +206,7 @@ int Server::HandlerConnexion() {
 						std::string line;
 						while (std::getline(stream, line)) {
 							if (!line.empty()) {
-								std::cout << "[DEBUG] Traitement de la commande: " << line << std::endl;
+								// std::cout << "[DEBUG] Traitement de la commande: " << line << std::endl;
 								parseCommand(line, fd);
 							}
 						}

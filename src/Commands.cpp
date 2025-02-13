@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/12 10:55:54 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/02/10 11:14:03 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/02/13 17:39:50 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -73,7 +73,7 @@ void Server::parseCommand(const std::string& message, int client_fd)
 	for (size_t i = 0; i < command.size(); ++i)
 		command[i] = static_cast<char>(std::toupper(command[i]));
 
-	std::cout << "[DEBUG] Received command: '" << command << "' from client FD: " << client_fd << std::endl;
+	// std::cout << "[DEBUG] Received command: '" << command << "' from client FD: " << client_fd << std::endl;
 
 	if (command == "PASS" || command == "NICK" || command == "USER" || command == "CAP" || command == "PING" || command == "PRIVMSG")
 	{

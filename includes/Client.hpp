@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 13:24:27 by thlefebv          #+#    #+#             */
-/*   Updated: 2025/01/28 15:55:26 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/02/13 19:00:15 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,7 +25,7 @@ class Client
 		std::string nickname;
 		std::string username;
 		bool is_authenticated;
-
+		std::string hostname;
 	public:
 
 		// Client();
@@ -44,4 +44,7 @@ class Client
 		bool isAuthenticated() const { return is_authenticated; }
     	void authenticate() { is_authenticated = true; }
 		bool notregistered() const { return !is_authenticated; }
+
+		std::string getHostname() const { return hostname; }
+	    void setHostname(const std::string &host) { hostname = host; }
 };

@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 13:24:16 by thlefebv          #+#    #+#             */
-/*   Updated: 2025/02/10 11:13:53 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/02/13 18:59:20 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,8 +17,11 @@
 Client::~Client() {}
 
 
- Client::Client(int fd, const std::string& name, const std::string& nickname)
-        : fd(fd), name(name), nickname(nickname), username(""), is_authenticated(false) {}
+Client::Client(int fd, const std::string& name, const std::string& nickname)
+        : fd(fd), name(name), nickname(nickname), username(""), is_authenticated(false)
+{
+	hostname = "unknown";
+}
 
 std::string Client::getName() const {
 	return name;
