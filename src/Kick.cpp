@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/28 15:21:03 by thlefebv          #+#    #+#             */
-/*   Updated: 2025/02/13 19:16:55 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/02/14 11:59:26 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -62,8 +62,9 @@ void Server::handleKick(const CommandParams &params)
     int kicked_fd = channel->getUserFdByNickname(params.nickname);
 
     // ❌ Supprimer l'utilisateur du canal
+    if(channel->isOperator(kicked_fd))
+        channel->removeOperator(kicked_fd);
     channel->removeUser(kicked_fd);
-
     // 🔥 Diffuser le message de kick à tous les membres du canal
     std::ostringstream kickMessage;
     kickMessage << ":" << getNickname(params.operator_fd) << " KICK " 
@@ -76,9 +77,6 @@ void Server::handleKick(const CommandParams &params)
     std::cout << "FD: " << params.operator_fd << " kicked user " 
               << params.nickname << " from channel " << params.channelName << std::endl;
 }
-
-
-
 
 
 void Server::removeChannel(const std::string &channelName)
@@ -105,6 +103,3 @@ void Server::sendMessageToChannel(const std::string& channelName, const std::str
 
     channel->broadcast(privMsg.str());
 }
-
-
-

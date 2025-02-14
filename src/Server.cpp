@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 20:44:56 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/02/13 18:06:14 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/02/14 15:05:29 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -155,30 +155,37 @@ int Server::CreateSocket()
 	return 0;
 }
 
-int Server::HandlerConnexion() {
+int Server::HandlerConnexion()
+{
 	fd_set read_fds, temp_fds;
 	FD_ZERO(&read_fds);
 	FD_SET(server_fd, &read_fds);
 
 	int max_fd = server_fd;
 
-	while (is_running) {
+	while (is_running)
+	{
 		temp_fds = read_fds;
 
 		// Attendre l'activité sur les sockets
-		if (select(max_fd + 1, &temp_fds, NULL, NULL, NULL) < 0) {
+		if (select(max_fd + 1, &temp_fds, NULL, NULL, NULL) < 0)
+		{
 			std::cerr << COLOR_RED << "Erreur dans select()." << COLOR_RESET << std::endl;
 			break;
 		}
 
-		for (int fd = 0; fd <= max_fd; ++fd) {
-			if (FD_ISSET(fd, &temp_fds)) {
-				if (fd == server_fd) { // Nouvelle connexion
+		for (int fd = 0; fd <= max_fd; ++fd)
+		{
+			if (FD_ISSET(fd, &temp_fds))
+			{
+				if (fd == server_fd) // Nouvelle connexion
+				{
 					struct sockaddr_in client_addr;
 					socklen_t client_len = sizeof(client_addr);
 					int client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &client_len);
 
-					if (client_fd < 0) {
+					if (client_fd < 0)
+					{
 						std::cerr << COLOR_RED << "Erreur lors de l'acceptation d'une connexion." << COLOR_RESET << std::endl;
 						continue;
 					}
@@ -197,39 +204,38 @@ int Server::HandlerConnexion() {
 				{ // Données d'un client existant
 					char buffer[1024];
 					int bytes_read = recv(fd, buffer, sizeof(buffer) - 1, 0);
-					if (bytes_read > 0) {
+					if (bytes_read > 0)
+					{
 						buffer[bytes_read] = '\0';
 						std::cout << "[DEBUG] Message reçu du client " << fd << ": " << buffer << std::endl;
 
 						// Séparer chaque ligne envoyée en une seule fois
 						std::istringstream stream(buffer);
 						std::string line;
-						while (std::getline(stream, line)) {
-							if (!line.empty()) {
+						while (std::getline(stream, line))
+						{
+							if (!line.empty())
+							{
 								// std::cout << "[DEBUG] Traitement de la commande: " << line << std::endl;
 								parseCommand(line, fd);
 							}
 						}
 					}
-					else if (bytes_read == 0)
-					{ // Déconnexion
-						std::cout << "Client déconnecté (FD: " << fd << ")." << std::endl;
+					else if (bytes_read == 0)// Déconnexion
+					{
+						std::string nickname = getNickname(fd);
+						std::cout << "Client déconnecté (FD: " << fd << ", " << nickname << ")." << std::endl;
 
-						// Diffuser un message de déconnexion
-						std::string quitMessage = ":" + getNickname(fd) + " QUIT :Client disconnected.\r\n";
+						// 🔥 Diffuser le message de départ
+						std::string quitMessage = ":" + nickname + " QUIT :Client disconnected.\r\n";
 						broadcastToChannels(fd, quitMessage);
 
-						// Nettoyage
+						// 🔥 Supprimer proprement le client
+						removeClient(fd);
+
+						// Fermeture du socket
 						close(fd);
 						FD_CLR(fd, &read_fds);
-						for (std::vector<int>::iterator it = client_fds.begin(); it != client_fds.end(); ++it)
-						{
-							if (*it == fd)
-							{
-								client_fds.erase(it);
-								break;
-							}
-						}
 					}
 					else
 					{ // Erreur
@@ -355,4 +361,43 @@ Channel* Server::findChannel(const std::string& channelName)
 			return channels[i];
 	}
 	return NULL; // Aucun canal trouvé
+}
+
+void Server::removeClient(int fd)
+{
+    std::string nickname = getNickname(fd);
+
+    // Trouver le client dans `clients`
+    std::vector<Client*>::iterator it;
+    for (it = clients.begin(); it != clients.end(); ++it)
+    {
+        if ((*it)->getFd() == fd)
+            break;
+    }
+
+    // Vérifier si on a trouvé le client
+    if (it != clients.end()) 
+    {
+        std::cout << "[DEBUG] 🔥 Suppression du client FD " << fd << " (" << nickname << ")\n";
+
+        // Supprimer le client de tous les channels
+        for (size_t i = 0; i < channels.size(); ++i) 
+        {
+            if (channels[i]->isUserInChannel(nickname))  
+            {
+                channels[i]->removeUser(fd); // ✅ Correction ici (fd au lieu de nickname)
+                std::cout << "[DEBUG] ❌ FD " << fd << " retiré du channel " << channels[i]->getName() << "\n";
+            }
+        }
+
+        // Supprimer de `clients`
+        delete *it;  // Libère la mémoire
+        clients.erase(it);  // Supprime du `vector`
+
+        std::cout << "[DEBUG] ✅ Client FD " << fd << " supprimé avec succès !\n";
+    }
+    else
+    {
+        std::cout << "[DEBUG] ⚠️ Tentative de suppression d'un client FD " << fd << " qui n'existe pas.\n";
+    }
 }

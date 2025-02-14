@@ -55,5 +55,5 @@ re:				fclean all
 # KICK = erreur 19:19 -!- Irssi: critical nicklist_set_host: assertion 'host != NULL' failed
 # 				19:19 -!- Irssi: critical nicklist_set_host: assertion 'host != NULL' failed
 
-# MOde +o = a verifier il reste en ope meme si y a verif 
-# en cas de deconnexion du serveur quitter le channel et effacer le client 
+# en cas de deconnexion du serveur quitter le channel et effacer le client
+# actualisation du username ne se fait pas dans le channel ne se fait pas
