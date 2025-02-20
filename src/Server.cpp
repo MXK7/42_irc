@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 20:44:56 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/02/14 15:05:29 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/02/20 11:03:01 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -265,28 +265,40 @@ int Server::HandlerConnexion()
 
 void Server::addClient(int client_fd, const std::string &name, const std::string &nickname)
 {
-	for (size_t i = 0; i < clients.size(); ++i)
-	{
-		if (clients[i]->getFd() == client_fd) // Vérifier si le FD existe déjà
-		{
-			std::cerr << "[ERROR] Trying to add an already existing FD: " << client_fd << std::endl;
-			return;
-		}
-	}
+    std::string host = getClientHost(client_fd); // 🔥 Récupère l'IP du client
+	
+    if (host.empty()) {
+        host = "127.0.0.1";  // 🔥 Si aucun hostname valide, utiliser l'IP locale
+    }
 
-	Client* newClient = new Client(client_fd, name, nickname);
-	clients.push_back(newClient);
+    for (size_t i = 0; i < clients.size(); ++i)
+    {
+        if (clients[i]->getFd() == client_fd) // Vérifier si le FD existe déjà
+        {
+            std::cerr << "[ERROR] Trying to add an already existing FD: " << client_fd << std::endl;
+            return;
+        }
+    }
 
-	std::cout << "Client added : FD = " << client_fd
-			  << ", Name = " << name
-			  << ", Nickname = " << nickname << std::endl;
+    // ✅ Création du client avec l'IP récupérée
+    Client* newClient = new Client(client_fd, name, nickname, host);
+    clients.push_back(newClient);
+
+    std::cout << "[DEBUG] Client FD " << client_fd << " ajouté avec host : " << host << std::endl;
+
+    std::cout << "Client added : FD = " << client_fd
+              << ", Name = " << name
+              << ", Nickname = " << nickname
+              << ", Host = " << host << std::endl;
 }
+
 
 
 
 
 void Server::broadcastToChannels(int client_fd, const std::string& message)
 {
+	std::cout << "[DEBUG] Broadcasting message to channels for FD " << client_fd << ": " << message;
 	// Récupérer le pseudonyme du client qui envoie le message
 	std::string senderNickname = getNickname(client_fd);
 
@@ -304,64 +316,22 @@ void Server::broadcastToChannels(int client_fd, const std::string& message)
 	}
 }
 
-void Server::sendWelcomeMessage(int client_fd)
+std::string Server::getClientHost(int client_fd)
 {
-	std::ostringstream welcomeMsg;
-	welcomeMsg << ":irc.server 001 " << getNickname(client_fd) << " :Welcome to the IRC server!\r\n"
-			   << ":irc.server 002 " << getNickname(client_fd) << " :Your host is irc.server, running version 1.0\r\n"
-			   << ":irc.server 003 " << getNickname(client_fd) << " :This server was created today\r\n";
+    struct sockaddr_in addr;
+    socklen_t addr_len = sizeof(addr);
 
-	send(client_fd, welcomeMsg.str().c_str(), welcomeMsg.str().size(), 0);
-	std::ostringstream whoReply;
-	whoReply << ":irc.server 352 " << getNickname(client_fd) 
-			<< " #chat * " << getNickname(client_fd) 
-			<< " irc.server " << getNickname(client_fd) 
-			<< " H :0 " << getNickname(client_fd) << "\r\n";
-	sendMessage(client_fd, whoReply.str());
+    // 🔎 Obtenir l'adresse IP du client
+    if (getpeername(client_fd, (struct sockaddr*)&addr, &addr_len) == -1) {
+        std::cerr << "[ERROR] getpeername() a échoué pour FD " << client_fd << std::endl;
+        return "unknown";
+    }
 
-	// 🔥 Message de fin de WHO
-	std::ostringstream endOfWho;
-	endOfWho << ":irc.server 315 " << getNickname(client_fd) 
-			<< " #chat :End of /WHO list\r\n";
-	sendMessage(client_fd, endOfWho.str());
-
+    // 🔎 Convertir l'adresse IP en string et retourner directement
+    return std::string(inet_ntoa(addr.sin_addr));
 }
 
-void Server::sendError(int client_fd, const std::string& errorCode, const std::string& command, const std::string& message)
-{
-	std::string nickname = getNickname(client_fd);
-	if (nickname.empty())
-		nickname = "*"; // Indiquer que le pseudo est inconnu
 
-	std::ostringstream errorMsg;
-	errorMsg << ":irc.server " << errorCode << " " << nickname << " " << command << " :" << message << "\r\n";
-	send(client_fd, errorMsg.str().c_str(), errorMsg.str().size(), 0);
-}
-
-bool Server::notregistered(int client_fd)
-{
-	for (size_t i = 0; i < clients.size(); ++i)
-	{
-		if (clients[i]->getFd() == client_fd)
-			return clients[i]->getNickname().empty() || clients[i]->getUsername().empty();
-	}
-	return true; // Si le client n'existe pas encore, il est considéré comme non enregistré.
-}
-
-void Server::sendMessage(int client_fd, const std::string& message)
-{
-	send(client_fd, message.c_str(), message.length(), 0);
-}
-
-Channel* Server::findChannel(const std::string& channelName)
-{
-	for (size_t i = 0; i < channels.size(); ++i)
-	{
-		if (channels[i]->getName() == channelName)
-			return channels[i];
-	}
-	return NULL; // Aucun canal trouvé
-}
 
 void Server::removeClient(int fd)
 {

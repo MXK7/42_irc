@@ -147,34 +147,60 @@ std::pair<std::string, time_t> Channel::getTopicMetadata() const
 
 void Channel::broadcast(const std::string &message, int excludeFd) 
 {
+	std::cout << "[DEBUG] Broadcasting message in channel: " << message;
     for (size_t i = 0; i < users.size(); ++i) 
     {
         if (users[i] != excludeFd)  // Ne pas envoyer le message à celui qui l'a envoyé
         {
-            send(users[i], message.c_str(), message.size(), 0);
-            std::cout << "[DEBUG] Message envoyé à FD " << users[i] << ": " << message << std::endl;
+            int client_fd = users[i];
+            if (send(client_fd, message.c_str(), message.size(), 0) == -1)
+            {
+                std::cerr << "[ERROR] Failed to send message to FD " << client_fd << std::endl;
+            }
+            else
+            {
+                std::cout << "[DEBUG] Message envoyé à FD " << client_fd << ": " << message << std::endl;
+            }
         }
     }
 }
 
-void Channel::removeUser(int fd) {
+void Channel::removeUser(int fd)
+{
+    std::vector<int>::iterator it = std::find(users.begin(), users.end(), fd);
+    if (it != users.end()) {
+        users.erase(it);
+        std::cout << "[DEBUG] FD " << fd << " removed from users list." << std::endl;
+    } else {
+        std::cout << "[DEBUG] FD " << fd << " not found in users list." << std::endl;
+    }
 
-	std::vector<int>::iterator it = std::find(users.begin(), users.end(), fd);
-	if (it != users.end()) {
-		users.erase(it);
-		std::cout << "FD " << fd << " erased" << std::endl;
-	} else {
-		std::cout << "FD " << fd << " not found" << std::endl;
-	}
+    for (std::map<std::string, int>::iterator mapIt = usersMap.begin(); mapIt != usersMap.end(); ) {
+        if (mapIt->second == fd) {
+            std::cout << "[DEBUG] Removing user " << mapIt->first << " from usersMap." << std::endl;
+            usersMap.erase(mapIt++); // ✅ Supprime correctement en avançant l'itérateur
+        }
+        else {
+            ++mapIt;
+        }
+    }
 
-	for (std::map<std::string, int>::iterator mapIt = usersMap.begin();
-											mapIt != usersMap.end(); ++mapIt) {
-		if (mapIt->second == fd) {
-			usersMap.erase(mapIt);
-			break;
-		}
-	}
+    // ✅ Ajout des logs après suppression
+    std::cout << "[DEBUG] 📌 Liste users après KICK : ";
+    for (size_t i = 0; i < users.size(); ++i)
+    {
+        std::cout << users[i] << " ";
+    }
+    std::cout << std::endl;
+
+    std::cout << "[DEBUG] 📌 usersMap après KICK : ";
+    for (std::map<std::string, int>::iterator it = usersMap.begin(); it != usersMap.end(); ++it)
+    {
+        std::cout << "[" << it->first << " : " << it->second << "] ";
+    }
+    std::cout << std::endl;
 }
+
 
 /*-------------------------------------------------------------------------------*/
 

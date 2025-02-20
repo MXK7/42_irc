@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 20:16:55 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/02/14 14:49:29 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/02/19 16:12:30 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -142,4 +142,11 @@ public:
 	void removeChannel(const std::string &channelName);
 	void sendMessageToChannel(const std::string& channelName, const std::string& message);
 	void removeClient(int fd);
+	void updateNicknameInChannels(const std::string& oldNick, const std::string& newNick, int fd);
+	bool isNicknameTaken(const std::string& nickname);
+	void handlePrivMsg(const CommandParams &params);
+	void addClient(int client_fd, const std::string &name, const std::string &nickname, const std::string &host);
+	std::string getClientHost(int client_fd);
+	void handleWho(const CommandParams& params);
+
 };

@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/12 10:55:54 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/02/13 17:39:50 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/02/20 09:59:43 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -75,7 +75,7 @@ void Server::parseCommand(const std::string& message, int client_fd)
 
 	// std::cout << "[DEBUG] Received command: '" << command << "' from client FD: " << client_fd << std::endl;
 
-	if (command == "PASS" || command == "NICK" || command == "USER" || command == "CAP" || command == "PING" || command == "PRIVMSG")
+	if (command == "PASS" || command == "NICK" || command == "USER" || command == "CAP" || command == "PING" || command == "PRIVMSG" || command == "WHO")
 	{
 		handleConnexionCommands(command, iss, client_fd);
 		return;
@@ -246,57 +246,62 @@ void Server::handleConnexionCommands(const std::string& command, std::istringstr
 		std::cout << "[DEBUG] Client FD " << client_fd << " authenticated with password.\n";
 		sendMessage(client_fd, ":server NOTICE * :Password accepted, proceed with NICK and USER\r\n");// ⚠️ Important : Envoyer un message de confirmation à Irssi
 	}
-
-else if (command == "NICK")
+	else if (command == "NICK")
 {
     std::string newNickname;
     iss >> newNickname;
-
-    if (newNickname.empty())
-    {
-        sendError(client_fd, "431", "NICK", "No nickname given"); // 431: ERR_NONICKNAMEGIVEN
+    Client* client = getClientByFd(client_fd);
+    
+    if (!client) {
+        sendError(client_fd, "401", "NICK", "No such nick");
         return;
     }
 
-    if (newNickname.find(' ') != std::string::npos || newNickname.find(',') != std::string::npos)
-    {
-        sendError(client_fd, "432", "NICK", "Erroneous nickname"); // 432: ERR_ERRONEOUSNICKNAME
+    std::string hostname = client->getHostname();
+
+    // 🔥 Vérification et correction du hostname après un changement de pseudo
+    if (hostname.empty()) {
+        client->setHostname("127.0.0.1");  // ✅ Assigner un hostname valide si vide
+        std::cout << "[DEBUG] ⚠️ Hostname vide détecté après NICK. Assignation à 127.0.0.1\n";
+    }
+
+    if (newNickname.empty()) {
+        sendError(client_fd, "431", "NICK", "No nickname given");
+        return;
+    }
+
+    if (newNickname.find(' ') != std::string::npos || newNickname.find(',') != std::string::npos) {
+        sendError(client_fd, "432", "NICK", "Erroneous nickname");
         return;
     }
 
     // Vérifier si le pseudonyme est déjà utilisé
-    for (size_t i = 0; i < clients.size(); ++i)
-    {
-        if (clients[i]->getNickname() == newNickname)
-        {
-            sendError(client_fd, "433", "NICK", "Nickname is already in use"); // 433: ERR_NICKNAMEINUSE
+    for (size_t i = 0; i < clients.size(); ++i) {
+        if (clients[i]->getNickname() == newNickname) {
+            sendError(client_fd, "433", "NICK", "Nickname is already in use");
             return;
         }
     }
 
     // Récupérer l'ancien pseudo du client
-    std::string oldNickname = getNickname(client_fd);
-    
-    // Mise à jour du pseudo dans la liste des clients
-    for (size_t i = 0; i < clients.size(); ++i)
-    {
-        if (clients[i]->getFd() == client_fd)
-        {
-            clients[i]->setNickname(newNickname);
-            std::cout << "[DEBUG] Client FD " << client_fd << " changed nickname from " 
-                      << oldNickname << " to " << newNickname << std::endl;
+    std::string oldNickname = client->getNickname();
 
-            // ✅ Envoi de la réponse NICK au client
-            std::string nickResponse = ":" + oldNickname + " NICK " + newNickname + "\r\n";
-            sendMessage(client_fd, nickResponse);  // 🔥 Envoi du message de confirmation au client
+    // ✅ Mise à jour du pseudo directement
+    client->setNickname(newNickname);
+    std::cout << "[DEBUG] Client FD " << client_fd << " changed nickname from " 
+              << oldNickname << " to " << newNickname << std::endl;
 
-            // Notification aux autres clients dans les canaux où l'utilisateur est
-            broadcastToChannels(client_fd, nickResponse);
+    // ✅ Mise à jour dans les canaux
+    updateNicknameInChannels(oldNickname, newNickname, client_fd);
 
-            return;
-        }
-    }
+    // ✅ Envoi de la réponse NICK au client
+    std::string nickResponse = ":" + oldNickname + " NICK " + newNickname + "\r\n";
+    sendMessage(client_fd, nickResponse);
+
+    // ✅ Notification aux autres clients après mise à jour
+    broadcastToChannels(client_fd, nickResponse);
 }
+
 	else if (command == "USER")
 	{
 		std::string username, hostname, servername, realname;
@@ -317,16 +322,26 @@ else if (command == "NICK")
 			{
 				clients[i]->setName(realname);
 				clients[i]->setUsername(username);
-				// std::cout << "[DEBUG] Client FD " << client_fd << " set username to " << username << std::endl;
+
+				// ✅ Mettre à jour le hostname après USER
+				clients[i]->setHostname(getClientHost(client_fd));
 
 				if (!clients[i]->getNickname().empty())
 				{
 					sendWelcomeMessage(client_fd);
-					// std::cout << "[DEBUG] Welcome message sent to client FD " << client_fd << std::endl;
 				}
 				return;
 			}
 		}
+	}
+	else if (command == "WHO")
+	{
+		CommandParams params;
+		params.client_fd = client_fd;
+		iss >> params.nickname; // Récupère le pseudo à rechercher
+
+		handleWho(params);
+		return;
 	}
 	else if (command == "PING")
 	{
@@ -345,9 +360,18 @@ else if (command == "NICK")
 	}
 	else if (command == "PRIVMSG")
 	{
+		CommandParams params;
+		params.client_fd = client_fd;
 		std::string target, message;
 		iss >> target;
 		std::getline(iss, message);
+
+		// ✅ Nettoyage des espaces avant le message
+		size_t firstChar = message.find_first_not_of(" ");
+		if (firstChar != std::string::npos)
+			message = message.substr(firstChar);
+		else
+			message = "";
 
 		if (target.empty() || message.empty())
 		{
@@ -358,38 +382,14 @@ else if (command == "NICK")
 		if (!message.empty() && message[0] == ':')
 			message = message.substr(1);
 
-		std::string senderNickname = getNickname(client_fd);
-		std::string fullMessage = ":" + senderNickname + " PRIVMSG " + target + " :" + message + "\r\n";
+		params.Arg.push_back(target);
+		params.Arg.push_back(message);
 
-		if (target[0] == '#') // 🔥 Vérification stricte pour les messages de canal
-		{
-			Channel* channel = findChannel(target);
-			
-			if (!channel)  // 🔥 Le canal n'existe plus
-			{
-				sendError(client_fd, "403", "PRIVMSG", "No such channel"); // 403: ERR_NOSUCHCHANNEL
-				return;
-			}
-
-			if (!channel->isUserInChannel(senderNickname)) // 🔥 Vérification si l'utilisateur est encore dans le canal
-			{
-				sendError(client_fd, "404", "PRIVMSG", "Cannot send to channel"); // 404: ERR_CANNOTSENDTOCHAN
-				return;
-			}
-
-			channel->broadcast(fullMessage, client_fd); // ✅ Si tout est bon, envoyer le message
-		}
-		else // 🔥 Gestion des messages privés entre utilisateurs
-		{
-			int target_fd = getClientFdByNickname(target);
-			if (target_fd != -1)
-				sendMessage(target_fd, fullMessage);
-			else
-				sendError(client_fd, "401", "PRIVMSG", "No such nick"); // 401: ERR_NOSUCHNICK
-		}
-
-		std::cout << "[DEBUG] PRIVMSG from " << senderNickname << " to " << target << ": " << message << std::endl;
+		std::cout << "[DEBUG] Call handlePrivMsg() for PRIVMSG " << target << " : " << message << std::endl;
+		
+		handlePrivMsg(params); // ✅ Appel de la fonction
 	}
+
 }
 
 void Server::handleOtherCommands(const std::string& command, std::istringstream& iss, int client_fd)

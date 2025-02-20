@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 17:13:04 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/02/13 18:15:01 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/02/18 13:45:30 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -80,5 +80,7 @@ public:
 	void removeOperator(int fd);
 	std::string listUsers() const;
 	int getUserCount() const;
+	void renameUser(const std::string& oldNick, const std::string& newNick, int fd);
+	bool isUserInChannel(int client_fd);
 
 };

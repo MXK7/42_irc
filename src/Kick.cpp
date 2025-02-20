@@ -6,7 +6,7 @@
 /*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/28 15:21:03 by thlefebv          #+#    #+#             */
-/*   Updated: 2025/02/14 11:59:26 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/02/20 13:22:26 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,45 +14,39 @@
 
 void Server::handleKick(const CommandParams &params)
 {
-    Channel *channel = NULL;
-
-    // 🔎 Vérifier si le canal existe
-    for (size_t i = 0; i < channels.size(); ++i)
-    {
-        if (channels[i]->getName() == params.channelName)
-        {
-            channel = channels[i];
-            break;
-        }
-    }
-
+    Channel *channel = getChannelByName(params.channelName);
     if (!channel)
     {
         sendError(params.operator_fd, "403", params.channelName, "No such channel");
         return;
     }
 
-    // 🔎 Vérifier si l'utilisateur est dans le canal
-    if (!channel->isUserInChannel(getNickname(params.operator_fd))) 
+    Client* operatorClient = getClientByFd(params.operator_fd);
+    if (!operatorClient)
     {
-        sendError(params.operator_fd, "441", getNickname(params.operator_fd), "You're not on that channel");
+        std::cout << "[DEBUG] ❌ Erreur: Client opérateur non trouvé!" << std::endl;
         return;
     }
 
-    // 🔎 Vérifier si l'utilisateur est opérateur dans le canal
+    std::string operatorNick = operatorClient->getNickname();
+    if (!channel->isUserInChannel(operatorNick))
+    {
+        sendError(params.operator_fd, "441", operatorNick, "You're not on that channel");
+        return;
+    }
+
     if (!channel->isOperator(params.operator_fd))
     {
-        // ✅ Envoyer le message DANS LE CHANNEL au lieu d'un NOTICE global
+        // 🔥 Envoyer un message d'erreur au canal si l'utilisateur n'est pas opérateur
         std::ostringstream kickErrorMessage;
-        kickErrorMessage << ":irc.server PRIVMSG " << params.channelName 
-                         << " :" << getNickname(params.operator_fd) 
+        kickErrorMessage << ":" << operatorNick << "!user@irc.server PRIVMSG " << params.channelName
+                         << " :" << operatorNick
                          << " tried to kick a user but is not an operator.\r\n";
-        
+
         channel->broadcast(kickErrorMessage.str());
         return;
     }
 
-    // 🔎 Vérifier si l'utilisateur à expulser est dans le canal
     if (!channel->isUserInChannel(params.nickname))
     {
         sendError(params.operator_fd, "441", params.nickname, "They aren't on that channel");
@@ -60,24 +54,37 @@ void Server::handleKick(const CommandParams &params)
     }
 
     int kicked_fd = channel->getUserFdByNickname(params.nickname);
+    Client* kickedClient = getClientByFd(kicked_fd);
+    if (!kickedClient)
+    {
+        std::cout << "[DEBUG] ❌ Erreur: Client à kicker non trouvé!" << std::endl;
+        return;
+    }
 
-    // ❌ Supprimer l'utilisateur du canal
-    if(channel->isOperator(kicked_fd))
-        channel->removeOperator(kicked_fd);
-    channel->removeUser(kicked_fd);
-    // 🔥 Diffuser le message de kick à tous les membres du canal
+    // Construire le message KICK avec le préfixe complet
     std::ostringstream kickMessage;
-    kickMessage << ":" << getNickname(params.operator_fd) << " KICK " 
-                << params.channelName << " " << params.nickname << "\r\n";
+    kickMessage << ":" << operatorNick << "!" << operatorClient->getUsername()
+                << "@" << operatorClient->getHostname() << " KICK "
+                << params.channelName << " " << params.nickname
+                << " :" << (params.message.empty() ? "Kicked from channel" : params.message) << "\r\n";
+
+    // Diffuser le message KICK
     channel->broadcast(kickMessage.str());
 
-    // 📩 Informer l'utilisateur expulsé
-    send(kicked_fd, kickMessage.str().c_str(), kickMessage.str().size(), 0);
+    // Retirer l'utilisateur du canal
+    if (channel->isOperator(kicked_fd))
+        channel->removeOperator(kicked_fd);
+    channel->removeUser(kicked_fd);
 
-    std::cout << "FD: " << params.operator_fd << " kicked user " 
+    std::cout << "[DEBUG] FD " << params.operator_fd << " kicked user "
               << params.nickname << " from channel " << params.channelName << std::endl;
-}
 
+    // Vérifier si le canal est vide et le supprimer si nécessaire
+    if (channel->getUserCount() == 0)
+    {
+        removeChannel(params.channelName);
+    }
+}
 
 void Server::removeChannel(const std::string &channelName)
 {

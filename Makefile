@@ -8,6 +8,7 @@ CXXFLAGS      = -Wall -Wextra -Werror -std=c++98 $(INCLUDES)
 
 SRC_FILES     = main \
 				Server \
+				ServerUtils \
 				Channel \
 				Client \
 				Commands\
@@ -17,6 +18,7 @@ SRC_FILES     = main \
 				Invite\
 				Topic\
 				Part\
+				Privmsg\
 
 
 SRC           = $(addprefix $(SRC_DIR), $(addsuffix .cpp, $(SRC_FILES)))
@@ -54,6 +56,3 @@ re:				fclean all
 
 # KICK = erreur 19:19 -!- Irssi: critical nicklist_set_host: assertion 'host != NULL' failed
 # 				19:19 -!- Irssi: critical nicklist_set_host: assertion 'host != NULL' failed
-
-# en cas de deconnexion du serveur quitter le channel et effacer le client
-# actualisation du username ne se fait pas dans le channel ne se fait pas
