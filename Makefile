@@ -1,4 +1,4 @@
-NAME          = prog
+NAME          = ircserv
 INCLUDES      = -I./includes
 SRC_DIR       = src/
 OBJ_DIR       = obj/
@@ -8,9 +8,19 @@ CXXFLAGS      = -Wall -Wextra -Werror -std=c++98 $(INCLUDES)
 
 SRC_FILES     = main \
 				Server \
+				ServerUtils \
 				Channel \
 				Client \
-				Commands
+				Commands\
+				Join\
+				Kick\
+				Mode\
+				Invite\
+				Topic\
+				Part\
+				Privmsg\
+				Pass\
+				ConnexionCommand\
 
 
 SRC           = $(addprefix $(SRC_DIR), $(addsuffix .cpp, $(SRC_FILES)))
@@ -45,3 +55,4 @@ re:				fclean all
 					@echo "Cleaned and rebuilt everything for $(NAME)!"
 
 .PHONY:			all clean fclean re
+

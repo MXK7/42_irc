@@ -3,55 +3,16 @@
 /*                                                        :::      ::::::::   */
 /*   Server.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: vmassoli <vmassoli@student.42.fr>          +#+  +:+       +#+        */
+/*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 20:44:56 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/01/12 15:24:47 by vmassoli         ###   ########.fr       */
+/*   Updated: 2025/02/26 14:04:06 by thlefebv         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../includes/Client.hpp"
 #include "../includes/Channel.hpp"
 #include "../includes/Server.hpp"
-// #include <vector>
-
-/**
- * @brief Create a server socket
-
-This function initializes a server socket using the IPv4 protocol (AF_INET) and TCP (SOCK_STREAM).
-It also sets the `SO_REUSEADDR` option, which allows the server to reuse the address without waiting
-for the operating system to release the port.
-
- * @return true if the socket was created and configured successfully, false otherwise.
-
- * @socket:
-	- AF_INET = IPv4
-	- SOCK_STREAM = Reliable and ordered communication (TCP)
-	- 0 = Automatically selects the appropriate protocol (TCP for SOCK_STREAM, UDP for SOCK_DGRAM)
-
- * @setsockopt:
-	- tmp_opt = 1: Enables the reuse option.
-	- SOL_SOCKET, SO_REUSEADDR: Allows the address to be reused.
-
- * @sockaddr_in:
-	struct sockaddr_in {
-		sa_family_t    sin_family;   // AF_INET (IPv4)
-		uint16_t       sin_port;     // Port (big-endian grâce à htons)
-		struct in_addr sin_addr;     // Adresse IP (ici INADDR_ANY)
-		char           sin_zero[8];  // Non utilisé (rempli par memset)
-	};
-
- * @INADDR_ANY:
-	Authorize all connections on all local interfaces.
-
- * @htons:
-	The 16-bit integer (short) to be converted, represented in host byte order.
-
- * @errors:
-	- Prints ERR_CR_SOCK if socket creation fails.
-	- Prints ERR_CFG_SOCK and exits the program if configuration fails.
- */
-
 
 Server* Server::instance = NULL;
 
@@ -72,15 +33,21 @@ Server::~Server() {
 }
 
 Server::Server(int port, const std::string& password)
-	: is_running(true)  // Init flag to make the serv run
+    : is_running(true), port(port), password(password), connexionCommands()
 {
-	this->port = port;
-	this->password = password;
+    connexionCommands.insert("PASS");
+    connexionCommands.insert("NICK");
+    connexionCommands.insert("USER");
+    connexionCommands.insert("CAP");
+    connexionCommands.insert("PING");
+    connexionCommands.insert("PRIVMSG");
+    connexionCommands.insert("WHO");
 
-	Server::instance = this;// Initialiser le pointeur statique de l'instance
+    Server::instance = this;
 
-	signal(SIGINT, Server::signal_handler); // Associer le gestionnaire de signal à SIGINT
+    signal(SIGINT, Server::signal_handler);
 }
+
 
 // Gestionnaire de signal pour fermer le serveur proprement
 void Server::handle_signal(int signal)
@@ -157,110 +124,239 @@ int Server::CreateSocket()
 
 int Server::HandlerConnexion()
 {
-	fd_set read_fds, temp_fds;
-	FD_ZERO(&read_fds);
-	FD_SET(server_fd, &read_fds);
+    int epoll_fd = epoll_create1(0);
+    if (epoll_fd == -1) {
+        std::cerr << COLOR_RED << "Erreur lors de la création de l'epoll." << COLOR_RESET << std::endl;
+        return 1;
+    }
 
-	int max_fd = server_fd;
+    struct epoll_event ev, events[120];
+    ev.events = EPOLLIN;
+    ev.data.fd = server_fd;
+    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server_fd, &ev) == -1) {
+        std::cerr << COLOR_RED << "Erreur lors de l'ajout du serveur à l'epoll." << COLOR_RESET << std::endl;
+        close(epoll_fd);
+        return 1;
+    }
 
-	while (is_running)
+    while (is_running)
+    {
+        int nfds = epoll_wait(epoll_fd, events, 120, -1);
+        if (nfds == -1) {
+            std::cerr << COLOR_RED << "Erreur dans epoll_wait()." << COLOR_RESET << std::endl;
+            break;
+        }
+
+        for (int n = 0; n < nfds; ++n)
+        {
+            if (events[n].data.fd == server_fd)
+            {
+                struct sockaddr_in client_addr;
+                socklen_t client_len = sizeof(client_addr);
+                int client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &client_len);
+                if (client_fd == -1) {
+                    std::cerr << COLOR_RED << "Erreur lors de l'acceptation d'une connexion." << COLOR_RESET << std::endl;
+                    continue;
+                }
+
+                int flags = fcntl(client_fd, F_GETFL, 0);
+                fcntl(client_fd, F_SETFL, flags | O_NONBLOCK);
+
+                std::cout << COLOR_YELLOW << "[AUTH] Connexion en attente du mot de passe pour FD: " << client_fd << COLOR_RESET << std::endl;
+                
+                // Ajoute le client à la liste des non-authentifiés
+                waitingForPass[client_fd] = true;
+
+                ev.events = EPOLLIN | EPOLLET;
+                ev.data.fd = client_fd;
+                if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &ev) == -1) {
+                    std::cerr << COLOR_RED << "Erreur lors de l'ajout du client à l'epoll." << COLOR_RESET << std::endl;
+                    close(client_fd);
+                    continue;
+                }
+            }
+            else
+            {
+                int fd = events[n].data.fd;
+                char buffer[1024];
+                int bytes_read = recv(fd, buffer, sizeof(buffer) - 1, 0);
+                if (bytes_read > 0)
+                {
+                    buffer[bytes_read] = '\0';
+                    // std::cout << " Message reçu du client " << fd << ": " << buffer << std::endl;
+
+                    std::istringstream stream(buffer);
+                    std::string line;
+                    while (std::getline(stream, line))
+                    {
+                        if (!line.empty())
+                        {
+                            std::istringstream iss(line);
+                            std::string command, receivedPassword;
+                            iss >> command >> receivedPassword;
+
+                            // **Attente de PASS obligatoire**
+                            if (waitingForPass.find(fd) != waitingForPass.end())
+                            {
+                                if (command == "PASS")
+                                {
+                                    if (receivedPassword == this->password)
+                                    {
+                                        std::cout << COLOR_GREEN << "[AUTH] Mot de passe valide pour FD: " << fd << COLOR_RESET << std::endl;
+                                        waitingForPass.erase(fd); // **Retirer de la liste des non-authentifiés**
+                                        addClient(fd, "", "");
+                                        sendMessage(fd, ":server NOTICE * :Password accepted, proceed with NICK and USER\r\n");
+                                    }
+                                    else
+                                    {
+                                        std::cerr << COLOR_RED << "[SECURITY] Connexion refusée pour FD: " << fd << " (Mot de passe incorrect)" << COLOR_RESET << std::endl;
+                                        sendError(fd, "464", "PASS", "Password incorrect");
+                                        close(fd);
+                                        epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
+                                        waitingForPass.erase(fd); // 🔥 Nettoyer la mémoire après échec d'authentification
+                                    }
+                                }
+                                else
+                                {
+                                    // 🔥 **Le client envoie autre chose que PASS, on ignore mais on ne ferme pas**
+                                    std::cerr << COLOR_YELLOW << "[SECURITY] FD " << fd << " doit encore envoyer PASS" << COLOR_RESET << std::endl;
+                                }
+                            }
+                            else
+                            {
+                                parseCommand(line, fd);
+                            }
+                        }
+                    }
+                }
+                else if (bytes_read == 0)
+                {
+                    std::cout << "Client déconnecté (FD: " << fd << ")." << std::endl;
+                    waitingForPass.erase(fd); // 🔥 Supprime le client de la liste des non-authentifiés
+                    removeClient(fd);
+                    epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
+                    close(fd);
+                }
+                else
+                {
+                    if (errno != EAGAIN && errno != EWOULDBLOCK) {
+                        std::cerr << COLOR_RED << "Erreur lors de la réception des données du client (FD: " << fd << ")." << COLOR_RESET << std::endl;
+                        waitingForPass.erase(fd);
+                        removeClient(fd);
+                        epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
+                        close(fd);
+                    }
+                }
+            }
+        }
+    }
+
+    close(epoll_fd);
+    close_all_clients();
+    close(server_fd);
+    return 0;
+}
+
+
+void Server::addClient(int client_fd, const std::string &name, const std::string &nickname)
+{
+    std::string host = getClientHost(client_fd); // 🔥 Récupère l'IP du client
+	
+    if (host.empty())
+        host = "127.0.0.1";  // 🔥 Si aucun hostname valide, utiliser l'IP locale
+
+    for (size_t i = 0; i < clients.size(); ++i)
+    {
+        if (clients[i]->getFd() == client_fd) // Vérifier si le FD existe déjà
+        {
+            std::cerr << "[ERROR] Trying to add an already existing FD: " << client_fd << std::endl;
+            return;
+        }
+    }
+
+    // ✅ Création du client avec l'IP récupérée
+    Client* newClient = new Client(client_fd, name, nickname, host);
+    clients.push_back(newClient);
+
+    std::cout << "Client added : FD = " << client_fd
+              << ", Name = " << name
+              << ", Nickname = " << nickname
+              << ", Host = " << host << std::endl;
+}
+
+
+void Server::broadcastToChannels(int client_fd, const std::string& message)
+{
+	// std::cout << " Broadcasting message to channels for FD " << client_fd << ": " << message;
+	// Récupérer le pseudonyme du client qui envoie le message
+	std::string senderNickname = getNickname(client_fd);
+
+	// Parcourir tous les canaux
+	for (size_t i = 0; i < channels.size(); ++i)
 	{
-		temp_fds = read_fds;
+		Channel* channel = channels[i];
 
-		//Wait to check the fd to see if there is some activity
-		if (select(max_fd + 1, &temp_fds, NULL, NULL, NULL) < 0)
+		// Vérifier si le client fait partie du canal
+		if (channel->isUserInChannel(senderNickname))
 		{
-			std::cerr << COLOR_RED << "Erreur dans select()." << COLOR_RESET << std::endl;
-			break;
-		}
-
-		for (int fd = 0; fd <= max_fd; ++fd)
-		{
-			if (FD_ISSET(fd, &temp_fds))
-			{
-				if (fd == server_fd)
-				{
-					struct sockaddr_in client_addr; //New connexion
-					socklen_t client_len = sizeof(client_addr);
-					int client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &client_len);
-
-					if (client_fd < 0)
-					{
-						std::cerr << COLOR_RED << "Erreur lors de l'acceptation d'une connexion." << COLOR_RESET << std::endl;
-						continue;
-					}
-
-					addClient(client_fd, "ClientName", "ClientNickname");
-
-					client_fds.push_back(client_fd);
-					FD_SET(client_fd, &read_fds);
-					if (client_fd > max_fd) max_fd = client_fd;
-
-					std::cout << COLOR_GREEN << "Nouvelle connexion acceptée (FD: " << client_fd << ")." << COLOR_RESET << std::endl;
-				}
-				else
-				{
-					char buffer[1024];
-					int bytes_read = recv(fd, buffer, sizeof(buffer) - 1, 0);
-
-					if (bytes_read > 0)
-{
-	buffer[bytes_read] = '\0';
-	std::cout << "Message reçu du client " << fd << ": " << buffer << std::endl;
-
-	std::string response = "Message reçu : "; // Réponse au client
-	response += buffer;
-	send(fd, response.c_str(), response.length(), 0);
-}
-else if (bytes_read == 0) // Le client a fermé la connexion
-{
-	std::cout << "Client déconnecté (FD: " << fd << ")." << std::endl;
-
-	// Fermer proprement la connexion
-	close(fd);
-	FD_CLR(fd, &read_fds);
-	client_fds.erase(std::remove(client_fds.begin(), client_fds.end(), fd), client_fds.end());
-}
-else // Erreur de réception
-{
-	std::cerr << COLOR_RED << "Erreur lors de la réception des données du client (FD: " << fd << ")." << COLOR_RESET << std::endl;
-
-	// Fermer proprement en cas d'erreur
-	close(fd);
-	FD_CLR(fd, &read_fds);
-	client_fds.erase(std::remove(client_fds.begin(), client_fds.end(), fd), client_fds.end());
-}
-				}
-			}
+			// Diffuser le message à tous les autres utilisateurs dans le canal
+			channel->broadcast(message, client_fd);
 		}
 	}
-	close_all_clients();
-	close(server_fd);
-	return 0;
-}
-void Server::addClient(int client_fd, const std::string &name,
-						const std::string &nickname) {
-	Client* newClient= new Client(client_fd, name, nickname);
-	clients.push_back(newClient);
-	std::cout << "Client added : FD = " << client_fd
-			  << ", Name = " << name
-			  << ", Nickname = " << nickname << std::endl;
 }
 
-void Server::handleCommand(const CommandParams &params)
+std::string Server::getClientHost(int client_fd)
 {
-	switch (params.commandType)
-	{
-		case CommandParams::JOIN:
-			handleJoin(params);
-			break;
-		case CommandParams::INVIT:
-			handleInvit(params);
-			break;
-		case CommandParams::KICK:
-			handleKick(params);
-			break;
-		default:
-			std::cerr << "Unknown command type!" << std::endl;
-	}
+    struct sockaddr_in addr;
+    socklen_t addr_len = sizeof(addr);
+
+    // 🔎 Obtenir l'adresse IP du client
+    if (getpeername(client_fd, (struct sockaddr*)&addr, &addr_len) == -1) {
+        std::cerr << "[ERROR] getpeername() a échoué pour FD " << client_fd << std::endl;
+        return "unknown";
+    }
+
+    // 🔎 Convertir l'adresse IP en string et retourner directement
+    return std::string(inet_ntoa(addr.sin_addr));
+}
+
+
+
+void Server::removeClient(int fd)
+{
+    std::string nickname = getNickname(fd);
+
+    // Trouver le client dans `clients`
+    std::vector<Client*>::iterator it;
+    for (it = clients.begin(); it != clients.end(); ++it)
+    {
+        if ((*it)->getFd() == fd)
+            break;
+    }
+
+    // Vérifier si on a trouvé le client
+    if (it != clients.end()) 
+    {
+        // std::cout << " 🔥 Suppression du client FD " << fd << " (" << nickname << ")\n";
+
+        // Supprimer le client de tous les channels
+        for (size_t i = 0; i < channels.size(); ++i) 
+        {
+            if (channels[i]->isUserInChannel(nickname))  
+            {
+                channels[i]->removeUser(fd); // ✅ Correction ici (fd au lieu de nickname)
+                // std::cout << " ❌ FD " << fd << " retiré du channel " << channels[i]->getName() << "\n";
+            }
+        }
+
+        // Supprimer de `clients`
+        delete *it;  // Libère la mémoire
+        clients.erase(it);  // Supprime du `vector`
+
+        // std::cout << " ✅ Client FD " << fd << " supprimé avec succès !\n";
+    }
+    else
+    {
+        // std::cout << " ⚠️ Tentative de suppression d'un client FD " << fd << " qui n'existe pas.\n";
+    }
 }
