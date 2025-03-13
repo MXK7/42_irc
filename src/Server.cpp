@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Server.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
+/*   By: rcarbonn <rcarbonn@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 20:44:56 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/02/20 11:03:01 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/03/13 15:33:50 by rcarbonn         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -104,7 +104,6 @@ void Server::signal_handler(int signal)
 		instance->handle_signal(signal);
 }
 
-
 void Server::close_all_clients()
 {
 	for (size_t i = 0; i < client_fds.size(); ++i)
@@ -157,15 +156,15 @@ int Server::CreateSocket()
 
 int Server::HandlerConnexion()
 {
-	fd_set read_fds, temp_fds;
-	FD_ZERO(&read_fds);
-	FD_SET(server_fd, &read_fds);
+	fd_set temp_fds;
+	FD_ZERO(&this->read_fds);
+	FD_SET(server_fd, &this->read_fds);
 
 	int max_fd = server_fd;
 
 	while (is_running)
 	{
-		temp_fds = read_fds;
+		temp_fds = this->read_fds;
 
 		// Attendre l'activité sur les sockets
 		if (select(max_fd + 1, &temp_fds, NULL, NULL, NULL) < 0)
@@ -195,7 +194,7 @@ int Server::HandlerConnexion()
 
 					// Mise à jour des descripteurs
 					client_fds.push_back(client_fd);
-					FD_SET(client_fd, &read_fds);
+					FD_SET(client_fd, &this->read_fds);
 					if (client_fd > max_fd) max_fd = client_fd;
 
 					std::cout << COLOR_GREEN << "Nouvelle connexion acceptée (FD: " << client_fd << ")." << COLOR_RESET << std::endl;
@@ -235,7 +234,7 @@ int Server::HandlerConnexion()
 
 						// Fermeture du socket
 						close(fd);
-						FD_CLR(fd, &read_fds);
+						FD_CLR(fd, &this->read_fds);
 					}
 					else
 					{ // Erreur
@@ -243,7 +242,7 @@ int Server::HandlerConnexion()
 
 						// Fermeture propre
 						close(fd);
-						FD_CLR(fd, &read_fds);
+						FD_CLR(fd, &this->read_fds);
 						for (std::vector<int>::iterator it = client_fds.begin(); it != client_fds.end(); ++it)
 						{
 							if (*it == fd)

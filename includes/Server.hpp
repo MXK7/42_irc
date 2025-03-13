@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Server.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
+/*   By: rcarbonn <rcarbonn@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 20:16:55 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/02/19 16:12:30 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/03/13 15:27:12 by rcarbonn         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -77,7 +77,7 @@ private:
 
 
 public:
-
+	fd_set read_fds;
 	static Server* instance;
 
 	Server(int port, const std::string& password);
@@ -119,6 +119,7 @@ public:
 	void sendError(int client_fd, const std::string& errorCode, const std::string& command, const std::string& message);
 	std::string cleanMessage(const std::string& message);
 	void sendWelcomeMessage(int client_fd);
+
 
 	void sendModeResponse(int client_fd, const std::string& nickname, const std::string& channelName, const std::string& mode, const std::string& extra);
 	std::vector<std::string> split_cmd(const std::string& s);

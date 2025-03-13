@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Commands.cpp                                       :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
+/*   By: rcarbonn <rcarbonn@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/12 10:55:54 by vmassoli          #+#    #+#             */
-/*   Updated: 2025/02/20 09:59:43 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/03/13 15:28:00 by rcarbonn         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -236,12 +236,26 @@ void Server::handleConnexionCommands(const std::string& command, std::istringstr
 		std::string password;
 		iss >> password;
 
-		if (password != this->password)
+		// if (password != this->password)
+		// {
+		// 	sendError(client_fd, "464", "PASS", "Password incorrect"); // 464: ERR_PASSWDMISMATCH
+			
+			
+		// 	close(client_fd); // Déconnexion après échec
+		// 	removeClient(client_fd);
+		// 	return;
+		// }
+
+
+		for (size_t i = 0; i < clients.size(); ++i)
 		{
-			sendError(client_fd, "464", "PASS", "Password incorrect"); // 464: ERR_PASSWDMISMATCH
-			close(client_fd); // Déconnexion après échec
-			return;
+			if (clients[i]->getFd() == client_fd)
+			{
+				clients[i]->setPassword(password);
+				return;
+			}
 		}
+		
 
 		std::cout << "[DEBUG] Client FD " << client_fd << " authenticated with password.\n";
 		sendMessage(client_fd, ":server NOTICE * :Password accepted, proceed with NICK and USER\r\n");// ⚠️ Important : Envoyer un message de confirmation à Irssi
@@ -320,15 +334,25 @@ void Server::handleConnexionCommands(const std::string& command, std::istringstr
 		{
 			if (clients[i]->getFd() == client_fd)
 			{
-				clients[i]->setName(realname);
-				clients[i]->setUsername(username);
-
-				// ✅ Mettre à jour le hostname après USER
-				clients[i]->setHostname(getClientHost(client_fd));
-
-				if (!clients[i]->getNickname().empty())
+				if (clients[i]->getPassword() != this->password)
 				{
-					sendWelcomeMessage(client_fd);
+					sendError(client_fd, "464", "PASS", "Password incorrect");
+					removeClient(client_fd);
+					close(client_fd);
+					FD_CLR(client_fd, &this->read_fds);
+				}
+				else
+				{
+					clients[i]->setName(realname);
+					clients[i]->setUsername(username);
+
+					// ✅ Mettre à jour le hostname après USER
+					clients[i]->setHostname(getClientHost(client_fd));
+
+					if (!clients[i]->getNickname().empty())
+					{
+						sendWelcomeMessage(client_fd);
+					}
 				}
 				return;
 			}

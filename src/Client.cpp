@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Client.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: thlefebv <thlefebv@student.42.fr>          +#+  +:+       +#+        */
+/*   By: rcarbonn <rcarbonn@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/11 13:24:16 by thlefebv          #+#    #+#             */
-/*   Updated: 2025/02/20 09:49:23 by thlefebv         ###   ########.fr       */
+/*   Updated: 2025/03/13 15:13:01 by rcarbonn         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -31,6 +31,10 @@ std::string Client::getNickname() const {
 	return nickname;
 }
 
+std::string Client::getPassword() const {
+	return password;
+}
+
 int Client::getFd() const {
 	return fd;
 }
@@ -45,6 +49,10 @@ void Client::setName(const std::string& name) {
 
 void Client::setUsername(const std::string& username) {
 	this->username = username;
+}
+
+void Client::setPassword(const std::string& password) {
+	this->password = password;
 }
 
 
